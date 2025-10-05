@@ -1,21 +1,36 @@
 import { Routes, Route } from "react-router-dom";
-import Home from "./pages/Home";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
 import PrivateRoute from "./components/PrivateRoute";
 
-function App() {
+function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<Home />} />
+      {/* Públicas */}
+      <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
-      <Route path="/dashboard" element={<PrivateRoute />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password/:token" element={<ResetPassword />} />
+      
+      {/* Admin */}
+      <Route path="/admin/*" element={
+        <PrivateRoute allowedRoles={['admin']}>
+          <AdminLayout />
+        </PrivateRoute>
+      } />
+      
+      {/* Agente */}
+      <Route path="/agente/*" element={
+        <PrivateRoute allowedRoles={['agente', 'admin']}>
+          <AgenteLayout />
+        </PrivateRoute>
+      } />
+      
+      {/* Cliente */}
+      <Route path="/cliente/*" element={
+        <PrivateRoute allowedRoles={['cliente']}>
+          <ClienteLayout />
+        </PrivateRoute>
+      } />
     </Routes>
   );
 }
-
-export default App;
-
-
-
