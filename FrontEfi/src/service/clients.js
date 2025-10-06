@@ -1,35 +1,43 @@
-import axios from 'axios';
+import api from "./client";
 
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+const endpoint = "/clientes";
 
-// Interceptor para adjuntar token automáticamente
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+function unwrap(res) {
+  return res.data?.data ?? res.data;
+}
 
-// Interceptor para manejar errores 401/403
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
-);
+const getAll = async (token) => {
+  const res = await api.get(endpoint, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return unwrap(res);
+};
 
-export default api;
+const getById = async (id, token) => {
+  const res = await api.get(`${endpoint}/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return unwrap(res);
+};
+
+const create = async (payload, token) => {
+  const res = await api.post(endpoint, payload, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return unwrap(res);
+};
+
+const update = async (id, payload, token) => {
+  const res = await api.put(`${endpoint}/${id}`, payload, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return unwrap(res);
+};
+
+const remove = async (id, token) => {
+  await api.delete(`${endpoint}/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+export default { getAll, getById, create, update, remove };
