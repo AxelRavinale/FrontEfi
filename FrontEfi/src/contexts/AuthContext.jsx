@@ -1,88 +1,56 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-import api from "../api/client"; // axios con interceptor
+import React, { createContext, useState, useContext } from "react";
+import api from "../api/client"; // tu instancia de Axios
 import { useNavigate } from "react-router-dom";
 
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
-const [user, setUser] = useState(null);     // info del usuario logueado
-const [token, setToken] = useState(null);   // JWT
-const [loading, setLoading] = useState(true);
-const navigate = useNavigate();
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-// 🔄 Cargar sesión guardada al iniciar la app
-useEffect(() => {
-    const savedToken = localStorage.getItem("token");
-    const savedUser = localStorage.getItem("user");
-    if (savedToken && savedUser) {
-    setToken(savedToken);
-    setUser(JSON.parse(savedUser));
-    }
-    setLoading(false);
-}, []);
+  const navigate = useNavigate();
 
-// 🔐 Login
-async function login(email, password) {
+  const login = async (email, password) => {
+    setLoading(true);
     try {
-    const res = await api.post("/auth/login", { email, password });
-    const { token, user } = res.data;
-
-    setToken(token);
-    setUser(user);
-    localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(user));
-
-    navigate("/dashboard"); // redirigir según rol
+      const res = await api.post("/auth/login", { email, password });
+      setUser(res.data.user); // supongamos que el backend devuelve { user, token }
+      localStorage.setItem("token", res.data.token);
+      setLoading(false);
+      navigate("/");
     } catch (err) {
-    throw new Error(err.response?.data?.error || "Error en login");
+      setLoading(false);
+      throw err.response?.data?.message || "Error en login";
     }
-}
+  };
 
-// 📝 Registro
-async function register(data) {
+  const register = async (data) => {
+    setLoading(true);
     try {
-    const res = await api.post("/auth/register", data);
-    const { token, user } = res.data;
-
-    setToken(token);
-    setUser(user);
-    localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(user));
-
-    navigate("/dashboard");
+      const res = await api.post("/auth/register", data);
+      setUser(res.data.user);
+      localStorage.setItem("token", res.data.token);
+      setLoading(false);
+      navigate("/");
     } catch (err) {
-    throw new Error(err.response?.data?.error || "Error en registro");
+      setLoading(false);
+      throw err.response?.data?.message || "Error en registro";
     }
-}
+  };
 
-// 🚪 Logout
-function logout() {
-    setToken(null);
+  const logout = () => {
     setUser(null);
     localStorage.removeItem("token");
-    localStorage.removeItem("user");
     navigate("/login");
-}
+  };
 
-// 🔑 Forgot password (envía mail con link)
-async function forgotPassword(email) {
-    await api.post("/auth/forgot-password", { email });
-}
-
-// 🔑 Reset password (recibe token + nueva pass)
-async function resetPassword(token, newPassword) {
-    await api.post("/auth/reset-password", { token, password: newPassword });
-}
-
-return (
-    <AuthContext.Provider
-    value={{ user, token, login, register, logout, forgotPassword, resetPassword, loading }}
-    >
-    {children}
+  return (
+    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
+      {children}
     </AuthContext.Provider>
-);
+  );
 }
 
 export function useAuth() {
-return useContext(AuthContext);
+  return useContext(AuthContext);
 }
