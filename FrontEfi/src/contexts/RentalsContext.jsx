@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useAuth } from "./AuthContext";
-import rentalsService from "../services/rentals";
+import rentalsService from "../service/rentals";
 
 const RentalsContext = createContext();
 

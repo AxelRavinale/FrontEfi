@@ -1,5 +1,5 @@
 // src/services/properties.js
-import api from "./client"; // Axios con interceptor JWT
+import api from "../api/client";
 
 const endpoint = "/propiedades";
 

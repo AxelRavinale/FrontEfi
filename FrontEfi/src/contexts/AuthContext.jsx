@@ -1,17 +1,11 @@
-<<<<<<< HEAD
 import React, { createContext, useContext, useState, useEffect } from "react";
-=======
-import React, { createContext, useState, useContext } from "react";
-import api from "../api/client"; // tu instancia de Axios
->>>>>>> 6ece8d858b25b5f51d8049cca665f75d7b7beaaa
 import { useNavigate } from "react-router-dom";
-import authService from "../services/auth";
+import authService from "../service/auth";
 
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-<<<<<<< HEAD
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -50,7 +44,7 @@ export function AuthProvider({ children }) {
           navigate("/cliente/propiedades");
           break;
         default:
-          navigate("/dashboard");
+          navigate("/");
       }
     } catch (err) {
       throw new Error(err.response?.data?.message || "Error en login");
@@ -62,7 +56,6 @@ export function AuthProvider({ children }) {
     try {
       const res = await authService.register(data);
       // El backend no devuelve token en registro, solo confirma creación
-      // Opcionalmente puedes hacer auto-login después del registro
       navigate("/login");
       return res;
     } catch (err) {
@@ -73,45 +66,10 @@ export function AuthProvider({ children }) {
   // Logout
   function logout() {
     setToken(null);
-=======
-  const [loading, setLoading] = useState(false);
-
-  const navigate = useNavigate();
-
-  const login = async (email, password) => {
-    setLoading(true);
-    try {
-      const res = await api.post("/auth/login", { email, password });
-      setUser(res.data.user); // supongamos que el backend devuelve { user, token }
-      localStorage.setItem("token", res.data.token);
-      setLoading(false);
-      navigate("/");
-    } catch (err) {
-      setLoading(false);
-      throw err.response?.data?.message || "Error en login";
-    }
-  };
-
-  const register = async (data) => {
-    setLoading(true);
-    try {
-      const res = await api.post("/auth/register", data);
-      setUser(res.data.user);
-      localStorage.setItem("token", res.data.token);
-      setLoading(false);
-      navigate("/");
-    } catch (err) {
-      setLoading(false);
-      throw err.response?.data?.message || "Error en registro";
-    }
-  };
-
-  const logout = () => {
->>>>>>> 6ece8d858b25b5f51d8049cca665f75d7b7beaaa
     setUser(null);
     localStorage.removeItem("token");
+    localStorage.removeItem("user");
     navigate("/login");
-<<<<<<< HEAD
   }
 
   // Forgot password (envía mail con link)
@@ -147,26 +105,14 @@ export function AuthProvider({ children }) {
       }}
     >
       {!loading && children}
-=======
-  };
-
-  return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
-      {children}
->>>>>>> 6ece8d858b25b5f51d8049cca665f75d7b7beaaa
     </AuthContext.Provider>
   );
 }
 
 export function useAuth() {
-<<<<<<< HEAD
   const context = useContext(AuthContext);
   if (!context) {
     throw new Error("useAuth debe usarse dentro de AuthProvider");
   }
   return context;
 }
-=======
-  return useContext(AuthContext);
-}
->>>>>>> 6ece8d858b25b5f51d8049cca665f75d7b7beaaa

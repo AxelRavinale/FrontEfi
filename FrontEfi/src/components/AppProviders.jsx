@@ -1,11 +1,11 @@
 import React from "react";
 import { BrowserRouter } from "react-router-dom";
-import { AuthProvider } from "./contexts/AuthContext";
-import { UsersProvider } from "./contexts/UsersContext";
-import { PropertiesProvider } from "./contexts/PropertiesContext";
-import { ClientsProvider } from "./contexts/ClientsContext";
-import { RentalsProvider } from "./contexts/RentalsContext";
-import { SalesProvider } from "./contexts/SalesContext";
+import { AuthProvider } from "../contexts/AuthContext";
+import { UsersProvider } from "../contexts/UsersContext";
+import { PropertiesProvider } from "../contexts/PropertiesContext";
+import { ClientsProvider } from "../contexts/ClientsContext";
+import { RentalsProvider } from "../contexts/RentalsContext";
+import { SalesProvider } from "../contexts/SalesContext";
 
 /**
  * AppProviders: Envuelve toda la app con los contextos necesarios
