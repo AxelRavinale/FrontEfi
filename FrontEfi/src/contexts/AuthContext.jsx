@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import authService from "../service/auth";
+import api from "../api/client"; // tu instancia de Axios
 
 const AuthContext = createContext();
 
@@ -10,19 +10,22 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Cargar sesión guardada al iniciar la app
+  // 🔹 Cargar sesión guardada al iniciar la app
   useEffect(() => {
     const savedToken = localStorage.getItem("token");
     const savedUser = localStorage.getItem("user");
+
     if (savedToken && savedUser) {
       setToken(savedToken);
       setUser(JSON.parse(savedUser));
     }
+
     setLoading(false);
   }, []);
 
-  // Login
+  // 🔹 Login
   async function login(email, password) {
+    setLoading(true);
     try {
       const res = await authService.login(email, password);
       const { token, user } = res;
@@ -33,14 +36,14 @@ export function AuthProvider({ children }) {
       localStorage.setItem("user", JSON.stringify(user));
 
       // Redirigir según rol
-      switch(user.rol) {
-        case 'admin':
+      switch (user.rol) {
+        case "admin":
           navigate("/admin/dashboard");
           break;
-        case 'agente':
+        case "agente":
           navigate("/agente/dashboard");
           break;
-        case 'cliente':
+        case "cliente":
           navigate("/cliente/propiedades");
           break;
         default:
@@ -48,11 +51,14 @@ export function AuthProvider({ children }) {
       }
     } catch (err) {
       throw new Error(err.response?.data?.message || "Error en login");
+    } finally {
+      setLoading(false);
     }
   }
 
-  // Registro
+  // 🔹 Registro
   async function register(data) {
+    setLoading(true);
     try {
       const res = await authService.register(data);
       // El backend no devuelve token en registro, solo confirma creación
@@ -60,19 +66,22 @@ export function AuthProvider({ children }) {
       return res;
     } catch (err) {
       throw new Error(err.response?.data?.message || "Error en registro");
+    } finally {
+      setLoading(false);
     }
   }
 
-  // Logout
+  // 🔹 Logout
   function logout() {
     setToken(null);
     setUser(null);
+    setToken(null);
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     navigate("/login");
   }
 
-  // Forgot password (envía mail con link)
+  // 🔹 Recuperar contraseña
   async function forgotPassword(email) {
     try {
       await authService.forgotPassword(email);
@@ -81,7 +90,7 @@ export function AuthProvider({ children }) {
     }
   }
 
-  // Reset password (recibe token + nueva pass)
+  // 🔹 Restablecer contraseña
   async function resetPassword(resetToken, newPassword) {
     try {
       await authService.resetPassword(resetToken, newPassword);
@@ -96,12 +105,12 @@ export function AuthProvider({ children }) {
       value={{
         user,
         token,
+        loading,
         login,
         register,
         logout,
         forgotPassword,
         resetPassword,
-        loading
       }}
     >
       {!loading && children}
@@ -116,3 +125,4 @@ export function useAuth() {
   }
   return context;
 }
+
