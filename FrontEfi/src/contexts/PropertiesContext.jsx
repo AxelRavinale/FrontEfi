@@ -1,22 +1,19 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { useAuth } from "./AuthContext";   // contexto de sesión (usuario, token)
-import propertiesService from "../services/properties"; // servicio de API
+import { useAuth } from "./AuthContext";
+import propertiesService from "../service/properties";
 
 const PropertiesContext = createContext();
 
-//  Provider: expone el estado global de propiedades a toda la app
 export function PropertiesProvider({ children }) {
-  const { token } = useAuth(); // traemos el token del AuthContext
-  const [properties, setProperties] = useState([]); // lista de propiedades
-  const [loading, setLoading] = useState(false);    // indicador de carga
-  const [error, setError] = useState(null);         // último error de API
+  const { token } = useAuth();
+  const [properties, setProperties] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  //  Cargar propiedades automáticamente cuando tengamos token
   useEffect(() => {
     if (token) fetchProperties();
   }, [token]);
 
-  // Obtener todas
   async function fetchProperties() {
     setLoading(true);
     setError(null);
@@ -30,7 +27,6 @@ export function PropertiesProvider({ children }) {
     }
   }
 
-  //  Obtener una por ID
   async function getPropertyById(id) {
     try {
       return await propertiesService.getById(id, token);
@@ -40,7 +36,6 @@ export function PropertiesProvider({ children }) {
     }
   }
 
-  //  Crear nueva propiedad
   async function createProperty(payload) {
     try {
       const newProp = await propertiesService.create(payload, token);
@@ -52,7 +47,6 @@ export function PropertiesProvider({ children }) {
     }
   }
 
-  // ✏️ Actualizar
   async function updateProperty(id, payload) {
     try {
       const updated = await propertiesService.update(id, payload, token);
@@ -66,7 +60,6 @@ export function PropertiesProvider({ children }) {
     }
   }
 
-  //  Eliminar
   async function deleteProperty(id) {
     try {
       await propertiesService.remove(id, token);
@@ -76,7 +69,6 @@ export function PropertiesProvider({ children }) {
     }
   }
 
-  //  Exponer valores y acciones
   return (
     <PropertiesContext.Provider
       value={{
@@ -95,7 +87,6 @@ export function PropertiesProvider({ children }) {
   );
 }
 
-//  Hook de acceso
 export function useProperties() {
   return useContext(PropertiesContext);
 }

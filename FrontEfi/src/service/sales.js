@@ -1,5 +1,5 @@
 // src/services/sales.js
-import api from "./client";
+import api from "../api/client";
 
 const endpoint = "/ventas";
 

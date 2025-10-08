@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import authService from "../service/auth";
 import api from "../api/client"; // tu instancia de Axios
-import authService from "../services/auth";
 
 const AuthContext = createContext();
 
@@ -62,6 +61,7 @@ export function AuthProvider({ children }) {
     setLoading(true);
     try {
       const res = await authService.register(data);
+      // El backend no devuelve token en registro, solo confirma creación
       navigate("/login");
       return res;
     } catch (err) {
@@ -73,6 +73,7 @@ export function AuthProvider({ children }) {
 
   // 🔹 Logout
   function logout() {
+    setToken(null);
     setUser(null);
     setToken(null);
     localStorage.removeItem("token");
@@ -124,3 +125,4 @@ export function useAuth() {
   }
   return context;
 }
+

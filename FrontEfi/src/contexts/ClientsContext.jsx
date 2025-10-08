@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useAuth } from "./AuthContext";
-import clientsService from "../services/clients";
+import clientsService from "../service/clients";
 
 const ClientsContext = createContext();
 
@@ -10,7 +10,6 @@ export function ClientsProvider({ children }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Obtener clientes al montar si hay token
   useEffect(() => {
     if (token) fetchClients();
   }, [token]);
