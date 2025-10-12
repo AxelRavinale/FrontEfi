@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import authService from "../service/auth";
-import api from "../api/client"; // tu instancia de Axios
+import api from "../api/client"; // instancia de Axios
+import authService from "../service/auth"; // servicios adicionales de auth
+import { useNavigate } from "react-router-dom";
 
-const AuthContext = createContext();
+export const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -10,28 +11,27 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // 🔹 Cargar sesión guardada al iniciar la app
+  // --- Cargar sesión guardada al iniciar la app ---
   useEffect(() => {
     const savedToken = localStorage.getItem("token");
     const savedUser = localStorage.getItem("user");
-
     if (savedToken && savedUser) {
       setToken(savedToken);
       setUser(JSON.parse(savedUser));
     }
-
     setLoading(false);
   }, []);
 
-  // 🔹 Login
+  // --- LOGIN ---
   async function login(email, password) {
     setLoading(true);
     try {
-      const res = await authService.login(email, password);
-      const { token, user } = res;
+      const res = await api.post("/auth/login", { email, password });
+      const { token, user } = res.data;
 
       setToken(token);
       setUser(user);
+
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(user));
 
@@ -47,7 +47,7 @@ export function AuthProvider({ children }) {
           navigate("/cliente/propiedades");
           break;
         default:
-          navigate("/");
+          navigate("/dashboard");
       }
     } catch (err) {
       throw new Error(err.response?.data?.message || "Error en login");
@@ -56,14 +56,14 @@ export function AuthProvider({ children }) {
     }
   }
 
-  // 🔹 Registro
+  // --- REGISTER ---
   async function register(data) {
     setLoading(true);
     try {
-      const res = await authService.register(data);
-      // El backend no devuelve token en registro, solo confirma creación
+      const res = await api.post("/auth/register", data);
+      // Podés auto loguear o redirigir al login
       navigate("/login");
-      return res;
+      return res.data;
     } catch (err) {
       throw new Error(err.response?.data?.message || "Error en registro");
     } finally {
@@ -71,17 +71,16 @@ export function AuthProvider({ children }) {
     }
   }
 
-  // 🔹 Logout
+  // --- LOGOUT ---
   function logout() {
     setToken(null);
     setUser(null);
-    setToken(null);
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     navigate("/login");
   }
 
-  // 🔹 Recuperar contraseña
+  // --- FORGOT PASSWORD ---
   async function forgotPassword(email) {
     try {
       await authService.forgotPassword(email);
@@ -90,7 +89,7 @@ export function AuthProvider({ children }) {
     }
   }
 
-  // 🔹 Restablecer contraseña
+  // --- RESET PASSWORD ---
   async function resetPassword(resetToken, newPassword) {
     try {
       await authService.resetPassword(resetToken, newPassword);
@@ -105,12 +104,12 @@ export function AuthProvider({ children }) {
       value={{
         user,
         token,
-        loading,
         login,
         register,
         logout,
         forgotPassword,
         resetPassword,
+        loading,
       }}
     >
       {!loading && children}
@@ -118,6 +117,7 @@ export function AuthProvider({ children }) {
   );
 }
 
+// --- Hook personalizado ---
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {
@@ -125,4 +125,3 @@ export function useAuth() {
   }
   return context;
 }
-

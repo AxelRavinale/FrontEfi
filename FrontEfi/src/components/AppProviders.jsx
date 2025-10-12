@@ -13,7 +13,6 @@ import { SalesProvider } from "../contexts/SalesContext";
  */
 export function AppProviders({ children }) {
   return (
-    <BrowserRouter>
       <AuthProvider>
         <UsersProvider>
           <PropertiesProvider>
@@ -27,6 +26,5 @@ export function AppProviders({ children }) {
           </PropertiesProvider>
         </UsersProvider>
       </AuthProvider>
-    </BrowserRouter>
   );
 }
