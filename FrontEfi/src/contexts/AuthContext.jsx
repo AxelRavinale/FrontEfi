@@ -11,15 +11,29 @@ const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Cargar sesión guardada
+  // ✅ Validar sesión al cargar
   useEffect(() => {
-    const savedToken = localStorage.getItem("token");
-    const savedUser = localStorage.getItem("user");
-    if (savedToken && savedUser) {
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser));
-    }
-    setLoading(false);
+    const validateSession = async () => {
+      const savedToken = localStorage.getItem("token");
+      const savedUser = localStorage.getItem("user");
+      
+      if (savedToken && savedUser) {
+        try {
+          // Verificar que el token siga siendo válido
+          await api.get('/auth/verify'); // Necesitas crear este endpoint
+          setToken(savedToken);
+          setUser(JSON.parse(savedUser));
+        } catch (error) {
+          // Token inválido, limpiar todo
+          console.error('Sesión inválida:', error);
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+        }
+      }
+      setLoading(false);
+    };
+
+    validateSession();
   }, []);
 
   // LOGIN
@@ -41,6 +55,7 @@ const AuthProvider = ({ children }) => {
         agente: "/agente/dashboard",
         cliente: "/cliente/propiedades",
       };
+      
       navigate(routes[user.rol] || "/dashboard");
     } catch (err) {
       throw new Error(err.response?.data?.message || "Error en login");
