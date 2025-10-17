@@ -1,29 +1,43 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-import api from "../api/client"; // instancia de Axios
-import authService from "../service/auth"; // servicios adicionales de auth
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import api from "../api/client";
+import authService from "../service/auth";
 import { useNavigate } from "react-router-dom";
 
-export const AuthContext = createContext();
+const AuthContext = createContext();
 
-export function AuthProvider({ children }) {
+const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // --- Cargar sesión guardada al iniciar la app ---
+  // ✅ Validar sesión al cargar
   useEffect(() => {
-    const savedToken = localStorage.getItem("token");
-    const savedUser = localStorage.getItem("user");
-    if (savedToken && savedUser) {
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser));
-    }
-    setLoading(false);
+    const validateSession = async () => {
+      const savedToken = localStorage.getItem("token");
+      const savedUser = localStorage.getItem("user");
+      
+      if (savedToken && savedUser) {
+        try {
+          // Verificar que el token siga siendo válido
+          await api.get('/auth/verify'); // Necesitas crear este endpoint
+          setToken(savedToken);
+          setUser(JSON.parse(savedUser));
+        } catch (error) {
+          // Token inválido, limpiar todo
+          console.error('Sesión inválida:', error);
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+        }
+      }
+      setLoading(false);
+    };
+
+    validateSession();
   }, []);
 
-  // --- LOGIN ---
-  async function login(email, password) {
+  // LOGIN
+  const login = useCallback(async (email, password) => {
     setLoading(true);
     try {
       const res = await api.post("/auth/login", { email, password });
@@ -36,32 +50,25 @@ export function AuthProvider({ children }) {
       localStorage.setItem("user", JSON.stringify(user));
 
       // Redirigir según rol
-      switch (user.rol) {
-        case "admin":
-          navigate("/admin/dashboard");
-          break;
-        case "agente":
-          navigate("/agente/dashboard");
-          break;
-        case "cliente":
-          navigate("/cliente/propiedades");
-          break;
-        default:
-          navigate("/dashboard");
-      }
+      const routes = {
+        admin: "/admin/dashboard",
+        agente: "/agente/dashboard",
+        cliente: "/cliente/propiedades",
+      };
+      
+      navigate(routes[user.rol] || "/dashboard");
     } catch (err) {
       throw new Error(err.response?.data?.message || "Error en login");
     } finally {
       setLoading(false);
     }
-  }
+  }, [navigate]);
 
-  // --- REGISTER ---
-  async function register(data) {
+  // REGISTER
+  const register = useCallback(async (data) => {
     setLoading(true);
     try {
       const res = await api.post("/auth/register", data);
-      // Podés auto loguear o redirigir al login
       navigate("/login");
       return res.data;
     } catch (err) {
@@ -69,35 +76,35 @@ export function AuthProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [navigate]);
 
-  // --- LOGOUT ---
-  function logout() {
+  // LOGOUT
+  const logout = useCallback(() => {
     setToken(null);
     setUser(null);
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     navigate("/login");
-  }
+  }, [navigate]);
 
-  // --- FORGOT PASSWORD ---
-  async function forgotPassword(email) {
+  // FORGOT PASSWORD
+  const forgotPassword = useCallback(async (email) => {
     try {
       await authService.forgotPassword(email);
     } catch (err) {
       throw new Error(err.response?.data?.message || "Error al enviar email");
     }
-  }
+  }, []);
 
-  // --- RESET PASSWORD ---
-  async function resetPassword(resetToken, newPassword) {
+  // RESET PASSWORD
+  const resetPassword = useCallback(async (resetToken, newPassword) => {
     try {
       await authService.resetPassword(resetToken, newPassword);
       navigate("/login");
     } catch (err) {
       throw new Error(err.response?.data?.message || "Error al restablecer contraseña");
     }
-  }
+  }, [navigate]);
 
   return (
     <AuthContext.Provider
@@ -115,13 +122,13 @@ export function AuthProvider({ children }) {
       {!loading && children}
     </AuthContext.Provider>
   );
-}
+};
 
-// --- Hook personalizado ---
-export function useAuth() {
+// Hook personalizado
+const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth debe usarse dentro de AuthProvider");
-  }
+  if (!context) throw new Error("useAuth debe usarse dentro de AuthProvider");
   return context;
-}
+};
+
+export { AuthProvider, useAuth, AuthContext };
