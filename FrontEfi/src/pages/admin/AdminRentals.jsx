@@ -10,13 +10,9 @@ import { Card } from "primereact/card";
 import { Tag } from "primereact/tag";
 import { InputText } from "primereact/inputtext";
 import { useRentals } from "../../contexts/RentalsContext";
-import { useProperties } from "../../contexts/PropertiesContext";
-import { useClients } from "../../contexts/ClientsContext";
 
 export default function AdminRentals() {
-  const { rentals, updateRental, cancelRental, loading } = useRentals();
-  const { properties } = useProperties();
-  const { clients } = useClients();
+  const { rentals, updateRental, deleteRental, loading } = useRentals();
   const [visible, setVisible] = useState(false);
   const [selectedRental, setSelectedRental] = useState(null);
   const [newEstado, setNewEstado] = useState("");
@@ -24,8 +20,6 @@ export default function AdminRentals() {
   const toast = useRef(null);
 
   const estadoOptions = [
-    { label: "Pendiente", value: "pendiente" },
-    { label: "Aprobado", value: "aprobado" },
     { label: "Activo", value: "activo" },
     { label: "Finalizado", value: "finalizado" },
     { label: "Cancelado", value: "cancelado" },
@@ -33,7 +27,7 @@ export default function AdminRentals() {
 
   const openChangeStatus = (rental) => {
     setSelectedRental(rental);
-    setNewEstado(rental.estado || "pendiente");
+    setNewEstado(rental.estado || "activo");
     setVisible(true);
   };
 
@@ -60,80 +54,91 @@ export default function AdminRentals() {
       toast.current.show({
         severity: "error",
         summary: "Error",
-        detail: error.message || "Error al actualizar",
+        detail: error.response?.data?.message || error.message || "Error al actualizar",
       });
     }
   };
 
-  const handleCancel = (rental) => {
+  const handleDelete = (rental) => {
     confirmDialog({
-      message: `¿Está seguro de cancelar este alquiler?`,
-      header: "Confirmar Cancelación",
+      message: `¿Está seguro de eliminar este alquiler?`,
+      header: "Confirmar Eliminación",
       icon: "pi pi-exclamation-triangle",
       acceptClassName: "p-button-danger",
-      acceptLabel: "Sí, cancelar",
-      rejectLabel: "No",
+      acceptLabel: "Sí, eliminar",
+      rejectLabel: "Cancelar",
       accept: async () => {
         try {
-          await cancelRental(rental.id);
+          await deleteRental(rental.id);
           toast.current.show({
             severity: "success",
-            summary: "Cancelado",
-            detail: "Alquiler cancelado exitosamente",
+            summary: "Eliminado",
+            detail: "Alquiler eliminado exitosamente",
           });
         } catch (error) {
           toast.current.show({
             severity: "error",
             summary: "Error",
-            detail: error.message || "Error al cancelar",
+            detail: error.message || "Error al eliminar",
           });
         }
       },
     });
   };
 
+  // ✅ Templates corregidos
   const statusTemplate = (rowData) => {
     const statusMap = {
-      pendiente: { severity: "warning", label: "Pendiente" },
-      aprobado: { severity: "info", label: "Aprobado" },
       activo: { severity: "success", label: "Activo" },
       finalizado: { severity: "secondary", label: "Finalizado" },
       cancelado: { severity: "danger", label: "Cancelado" },
     };
-    const status = statusMap[rowData.estado] || statusMap.pendiente;
+    const status = statusMap[rowData.estado] || statusMap.activo;
     return <Tag severity={status.severity} value={status.label} />;
   };
 
   const propertyTemplate = (rowData) => {
-    // Buscar la propiedad relacionada
-    const property = properties.find((p) => p.id === rowData.propertyId);
-    return property ? (
+    return rowData.Propiedad?.direccion ? (
       <span>
         <i className="pi pi-home me-2" style={{ color: "var(--gold)" }}></i>
-        {property.nombre}
+        {rowData.Propiedad.direccion}
       </span>
     ) : (
-      <span className="text-muted">Propiedad no encontrada</span>
+      <span className="text-muted">Sin propiedad</span>
     );
   };
 
   const clientTemplate = (rowData) => {
-    // Buscar el cliente relacionado
-    const client = clients.find((c) => c.id === rowData.userId);
-    return client ? (
+    // Cliente tiene relación con Usuario
+    const userName = rowData.Cliente?.Usuario?.nombre;
+    return userName ? (
       <span>
         <i className="pi pi-user me-2" style={{ color: "var(--sage-green)" }}></i>
-        {client.nombre}
+        {userName}
       </span>
     ) : (
-      <span className="text-muted">Cliente no encontrado</span>
+      <span className="text-muted">Sin cliente</span>
     );
   };
 
-  const dateTemplate = (rowData) => {
-    if (!rowData.createdAt) return <span className="text-muted">-</span>;
-    const date = new Date(rowData.createdAt);
+  const dateStartTemplate = (rowData) => {
+    if (!rowData.fecha_inicio) return <span className="text-muted">-</span>;
+    const date = new Date(rowData.fecha_inicio);
     return date.toLocaleDateString("es-AR");
+  };
+
+  const dateEndTemplate = (rowData) => {
+    if (!rowData.fecha_fin) return <span className="text-muted">-</span>;
+    const date = new Date(rowData.fecha_fin);
+    return date.toLocaleDateString("es-AR");
+  };
+
+  const montoTemplate = (rowData) => {
+    return (
+      <span style={{ color: "var(--forest-green)", fontWeight: "600" }}>
+        ${(rowData.monto_mensual || 0).toLocaleString()}/mes
+      </span>
+    );
   };
 
   const actionTemplate = (rowData) => {
@@ -146,15 +151,13 @@ export default function AdminRentals() {
           tooltip="Cambiar Estado"
           tooltipOptions={{ position: "top" }}
         />
-        {rowData.estado !== "cancelado" && rowData.estado !== "finalizado" && (
-          <Button
-            icon="pi pi-times"
-            className="p-button-rounded p-button-danger p-button-sm"
-            onClick={() => handleCancel(rowData)}
-            tooltip="Cancelar"
-            tooltipOptions={{ position: "top" }}
-          />
-        )}
+        <Button
+          icon="pi pi-trash"
+          className="p-button-rounded p-button-danger p-button-sm"
+          onClick={() => handleDelete(rowData)}
+          tooltip="Eliminar"
+          tooltipOptions={{ position: "top" }}
+        />
       </div>
     );
   };
@@ -214,6 +217,7 @@ export default function AdminRentals() {
             header="Propiedad"
             body={propertyTemplate}
             sortable
+            field="Propiedad.direccion"
             style={{ minWidth: "200px" }}
           />
           <Column
@@ -223,10 +227,25 @@ export default function AdminRentals() {
             style={{ minWidth: "180px" }}
           />
           <Column
-            header="Fecha"
-            body={dateTemplate}
+            header="Inicio"
+            body={dateStartTemplate}
             sortable
+            field="fecha_inicio"
             style={{ minWidth: "120px" }}
+          />
+          <Column
+            header="Fin"
+            body={dateEndTemplate}
+            sortable
+            field="fecha_fin"
+            style={{ minWidth: "120px" }}
+          />
+          <Column
+            header="Monto"
+            body={montoTemplate}
+            sortable
+            field="monto_mensual"
+            style={{ minWidth: "130px" }}
           />
           <Column
             field="estado"
@@ -264,6 +283,8 @@ export default function AdminRentals() {
             <strong>Alquiler #{selectedRental?.id}</strong>
             <br />
             Estado actual: <strong>{selectedRental?.estado}</strong>
+            <br />
+            Monto mensual: <strong>${(selectedRental?.monto_mensual || 0).toLocaleString()}</strong>
           </div>
 
           <div>

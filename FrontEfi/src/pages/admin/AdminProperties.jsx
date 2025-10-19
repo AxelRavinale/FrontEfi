@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Button } from "primereact/button";
@@ -17,12 +17,17 @@ export default function AdminProperties() {
     useProperties();
   const [visible, setVisible] = useState(false);
   const [editingProperty, setEditingProperty] = useState(null);
+  
+  // ✅ CORREGIDO: usar campos que coincidan con el backend
   const [formData, setFormData] = useState({
-    nombre: "",
     direccion: "",
     precio: 0,
     estado: "disponible",
+    descripcion: "",
+    tamaño: 0,
+    tipo_id: null
   });
+  
   const [globalFilter, setGlobalFilter] = useState("");
   const toast = useRef(null);
 
@@ -30,15 +35,24 @@ export default function AdminProperties() {
     { label: "Disponible", value: "disponible" },
     { label: "Alquilada", value: "alquilada" },
     { label: "Vendida", value: "vendida" },
-    { label: "Cancelado", value: "cancelado" },
+  ];
+
+  // ✅ TODO: Deberías cargar los tipos de propiedad disponibles
+  // Por ahora usamos un ejemplo estático
+  const tipoOptions = [
+    { label: "Casa", value: 1 },
+    { label: "Departamento", value: 2 },
+    { label: "Local", value: 3 },
   ];
 
   const resetForm = () => {
     setFormData({
-      nombre: "",
       direccion: "",
       precio: 0,
       estado: "disponible",
+      descripcion: "",
+      tamaño: 0,
+      tipo_id: null
     });
     setEditingProperty(null);
   };
@@ -46,21 +60,23 @@ export default function AdminProperties() {
   const openEdit = (property) => {
     setEditingProperty(property);
     setFormData({
-      nombre: property.nombre || "",
       direccion: property.direccion || "",
       precio: property.precio || 0,
       estado: property.estado || "disponible",
+      descripcion: property.descripcion || "",
+      tamaño: property.tamaño || 0,
+      tipo_id: property.tipo_id || null
     });
     setVisible(true);
   };
 
   const handleSubmit = async () => {
     // Validaciones
-    if (!formData.nombre || !formData.direccion) {
+    if (!formData.direccion || !formData.precio || !formData.tipo_id) {
       toast.current.show({
         severity: "error",
         summary: "Error",
-        detail: "Nombre y dirección son obligatorios",
+        detail: "Dirección, precio y tipo son obligatorios",
       });
       return;
     }
@@ -84,17 +100,18 @@ export default function AdminProperties() {
       setVisible(false);
       resetForm();
     } catch (error) {
+      console.error('Error en handleSubmit:', error);
       toast.current.show({
         severity: "error",
         summary: "Error",
-        detail: error.message || "Error en la operación",
+        detail: error.response?.data?.message || error.message || "Error en la operación",
       });
     }
   };
 
   const handleDelete = (property) => {
     confirmDialog({
-      message: `¿Está seguro de eliminar la propiedad "${property.nombre}"?`,
+      message: `¿Está seguro de eliminar la propiedad en "${property.direccion}"?`,
       header: "Confirmar Eliminación",
       icon: "pi pi-exclamation-triangle",
       acceptClassName: "p-button-danger",
@@ -125,7 +142,6 @@ export default function AdminProperties() {
       disponible: { severity: "success", label: "Disponible" },
       alquilada: { severity: "warning", label: "Alquilada" },
       vendida: { severity: "info", label: "Vendida" },
-      cancelado: { severity: "danger", label: "Cancelado" },
     };
     const status = statusMap[rowData.estado] || statusMap.disponible;
     return <Tag severity={status.severity} value={status.label} />;
@@ -133,6 +149,10 @@ export default function AdminProperties() {
 
   const priceTemplate = (rowData) => {
     return `$${(rowData.precio || 0).toLocaleString()}`;
+  };
+
+  const tipoTemplate = (rowData) => {
+    return rowData.TipoPropiedad?.nombre || 'N/A';
   };
 
   const actionTemplate = (rowData) => {
@@ -205,16 +225,17 @@ export default function AdminProperties() {
           className="p-datatable-sm"
         >
           <Column
-            field="nombre"
-            header="Nombre"
-            sortable
-            style={{ minWidth: "200px" }}
-          />
-          <Column
             field="direccion"
             header="Dirección"
             sortable
             style={{ minWidth: "200px" }}
+          />
+          <Column
+            field="TipoPropiedad.nombre"
+            header="Tipo"
+            body={tipoTemplate}
+            sortable
+            style={{ minWidth: "120px" }}
           />
           <Column
             field="precio"
@@ -222,6 +243,12 @@ export default function AdminProperties() {
             body={priceTemplate}
             sortable
             style={{ minWidth: "120px" }}
+          />
+          <Column
+            field="tamaño"
+            header="Tamaño (m²)"
+            sortable
+            style={{ minWidth: "100px" }}
           />
           <Column
             field="estado"
@@ -255,18 +282,6 @@ export default function AdminProperties() {
       >
         <div className="d-flex flex-column gap-3 py-3">
           <div>
-            <label className="form-label fw-semibold">Nombre *</label>
-            <InputText
-              placeholder="Ej: Casa Moderna en Barrio Norte"
-              value={formData.nombre}
-              onChange={(e) =>
-                setFormData({ ...formData, nombre: e.target.value })
-              }
-              className="w-100"
-            />
-          </div>
-
-          <div>
             <label className="form-label fw-semibold">Dirección *</label>
             <InputText
               placeholder="Ej: Av. Libertador 1234"
@@ -279,7 +294,20 @@ export default function AdminProperties() {
           </div>
 
           <div>
-            <label className="form-label fw-semibold">Precio</label>
+            <label className="form-label fw-semibold">Tipo de Propiedad *</label>
+            <Dropdown
+              value={formData.tipo_id}
+              options={tipoOptions}
+              onChange={(e) =>
+                setFormData({ ...formData, tipo_id: e.value })
+              }
+              placeholder="Seleccione un tipo"
+              className="w-100"
+            />
+          </div>
+
+          <div>
+            <label className="form-label fw-semibold">Precio *</label>
             <InputNumber
               value={formData.precio}
               onValueChange={(e) =>
@@ -288,6 +316,30 @@ export default function AdminProperties() {
               mode="currency"
               currency="USD"
               locale="en-US"
+              className="w-100"
+            />
+          </div>
+
+          <div>
+            <label className="form-label fw-semibold">Tamaño (m²)</label>
+            <InputNumber
+              value={formData.tamaño}
+              onValueChange={(e) =>
+                setFormData({ ...formData, tamaño: e.value })
+              }
+              suffix=" m²"
+              className="w-100"
+            />
+          </div>
+
+          <div>
+            <label className="form-label fw-semibold">Descripción</label>
+            <InputText
+              placeholder="Descripción de la propiedad"
+              value={formData.descripcion}
+              onChange={(e) =>
+                setFormData({ ...formData, descripcion: e.target.value })
+              }
               className="w-100"
             />
           </div>

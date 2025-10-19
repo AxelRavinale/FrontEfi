@@ -55,11 +55,10 @@ export default function AdminLayout() {
     <div className="d-flex align-items-center gap-3">
       <span className="text-muted">
         <i className="pi pi-user me-2"></i>
-        {user?.name}
+        {user?.nombre} {/* ✅ CORREGIDO: nombre en lugar de name */}
       </span>
       <Avatar
-        label={user?.name?.charAt(0).toUpperCase()}
-        shape="circle"
+        label={user?.nombre?.charAt(0).toUpperCase()} 
         style={{ background: "var(--gold)", color: "white" }}
       />
       <button className="btn btn-premium" onClick={logout}>

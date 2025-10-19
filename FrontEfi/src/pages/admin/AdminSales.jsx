@@ -10,13 +10,9 @@ import { Card } from "primereact/card";
 import { Tag } from "primereact/tag";
 import { InputText } from "primereact/inputtext";
 import { useSales } from "../../contexts/SalesContext";
-import { useProperties } from "../../contexts/PropertiesContext";
-import { useClients } from "../../contexts/ClientsContext";
 
 export default function AdminSales() {
-  const { sales, updateSale, cancelSale, loading } = useSales();
-  const { properties } = useProperties();
-  const { clients } = useClients();
+  const { sales, updateSale, deleteSale, loading } = useSales();
   const [visible, setVisible] = useState(false);
   const [selectedSale, setSelectedSale] = useState(null);
   const [newEstado, setNewEstado] = useState("");
@@ -24,15 +20,13 @@ export default function AdminSales() {
   const toast = useRef(null);
 
   const estadoOptions = [
-    { label: "Pendiente", value: "pendiente" },
-    { label: "Aprobado", value: "aprobado" },
-    { label: "Finalizado", value: "finalizado" },
-    { label: "Cancelado", value: "cancelado" },
+    { label: "Finalizada", value: "finalizada" },
+    { label: "Cancelada", value: "cancelada" },
   ];
 
   const openChangeStatus = (sale) => {
     setSelectedSale(sale);
-    setNewEstado(sale.estado || "pendiente");
+    setNewEstado(sale.estado || "finalizada");
     setVisible(true);
   };
 
@@ -59,70 +53,69 @@ export default function AdminSales() {
       toast.current.show({
         severity: "error",
         summary: "Error",
-        detail: error.message || "Error al actualizar",
+        detail: error.response?.data?.message || error.message || "Error al actualizar",
       });
     }
   };
 
-  const handleCancel = (sale) => {
+  const handleDelete = (sale) => {
     confirmDialog({
-      message: `¿Está seguro de cancelar esta venta?`,
-      header: "Confirmar Cancelación",
+      message: `¿Está seguro de eliminar esta venta?`,
+      header: "Confirmar Eliminación",
       icon: "pi pi-exclamation-triangle",
       acceptClassName: "p-button-danger",
-      acceptLabel: "Sí, cancelar",
-      rejectLabel: "No",
+      acceptLabel: "Sí, eliminar",
+      rejectLabel: "Cancelar",
       accept: async () => {
         try {
-          await cancelSale(sale.id);
+          await deleteSale(sale.id);
           toast.current.show({
             severity: "success",
-            summary: "Cancelado",
-            detail: "Venta cancelada exitosamente",
+            summary: "Eliminado",
+            detail: "Venta eliminada exitosamente",
           });
         } catch (error) {
           toast.current.show({
             severity: "error",
             summary: "Error",
-            detail: error.message || "Error al cancelar",
+            detail: error.message || "Error al eliminar",
           });
         }
       },
     });
   };
 
+  // ✅ Templates corregidos
   const statusTemplate = (rowData) => {
     const statusMap = {
-      pendiente: { severity: "warning", label: "Pendiente" },
-      aprobado: { severity: "info", label: "Aprobado" },
-      finalizado: { severity: "success", label: "Finalizado" },
-      cancelado: { severity: "danger", label: "Cancelado" },
+      finalizada: { severity: "success", label: "Finalizada" },
+      cancelada: { severity: "danger", label: "Cancelada" },
     };
-    const status = statusMap[rowData.estado] || statusMap.pendiente;
+    const status = statusMap[rowData.estado] || statusMap.finalizada;
     return <Tag severity={status.severity} value={status.label} />;
   };
 
   const propertyTemplate = (rowData) => {
-    const property = properties.find((p) => p.id === rowData.id_propiedad);
-    return property ? (
+    return rowData.Propiedad?.direccion ? (
       <span>
         <i className="pi pi-home me-2" style={{ color: "var(--gold)" }}></i>
-        {property.nombre}
+        {rowData.Propiedad.direccion}
       </span>
     ) : (
-      <span className="text-muted">Propiedad no encontrada</span>
+      <span className="text-muted">Sin propiedad</span>
     );
   };
 
   const clientTemplate = (rowData) => {
-    const client = clients.find((c) => c.id === rowData.id_cliente);
-    return client ? (
+    // Cliente tiene relación con Usuario
+    const userName = rowData.Cliente?.Usuario?.nombre;
+    return userName ? (
       <span>
         <i className="pi pi-user me-2" style={{ color: "var(--sage-green)" }}></i>
-        {client.nombre}
+        {userName}
       </span>
     ) : (
-      <span className="text-muted">Cliente no encontrado</span>
+      <span className="text-muted">Sin cliente</span>
     );
   };
 
@@ -140,6 +133,17 @@ export default function AdminSales() {
     );
   };
 
+  const agenteTemplate = (rowData) => {
+    return rowData.Usuario?.nombre ? (
+      <span>
+        <i className="pi pi-briefcase me-2" style={{ color: "var(--light-brown)" }}></i>
+        {rowData.Usuario.nombre}
+      </span>
+    ) : (
+      <span className="text-muted">Sin agente</span>
+    );
+  };
+
   const actionTemplate = (rowData) => {
     return (
       <div className="d-flex gap-2">
@@ -150,15 +154,13 @@ export default function AdminSales() {
           tooltip="Cambiar Estado"
           tooltipOptions={{ position: "top" }}
         />
-        {rowData.estado !== "cancelado" && rowData.estado !== "finalizado" && (
-          <Button
-            icon="pi pi-times"
-            className="p-button-rounded p-button-danger p-button-sm"
-            onClick={() => handleCancel(rowData)}
-            tooltip="Cancelar"
-            tooltipOptions={{ position: "top" }}
-          />
-        )}
+        <Button
+          icon="pi pi-trash"
+          className="p-button-rounded p-button-danger p-button-sm"
+          onClick={() => handleDelete(rowData)}
+          tooltip="Eliminar"
+          tooltipOptions={{ position: "top" }}
+        />
         <Button
           icon="pi pi-file-pdf"
           className="p-button-rounded p-button-help p-button-sm"
@@ -198,7 +200,7 @@ export default function AdminSales() {
 
   // Calcular estadísticas
   const totalIngresos = sales
-    .filter((s) => s.estado === "finalizado")
+    .filter((s) => s.estado === "finalizada")
     .reduce((acc, s) => acc + (s.monto_total || 0), 0);
 
   return (
@@ -227,21 +229,21 @@ export default function AdminSales() {
         <div className="col-md-3">
           <Card className="premium-card text-center">
             <i
-              className="pi pi-clock mb-2"
-              style={{ fontSize: "2rem", color: "var(--light-brown)" }}
+              className="pi pi-check-circle mb-2"
+              style={{ fontSize: "2rem", color: "var(--sage-green)" }}
             ></i>
-            <h4>{sales.filter((s) => s.estado === "pendiente").length}</h4>
-            <small className="text-muted">Pendientes</small>
+            <h4>{sales.filter((s) => s.estado === "finalizada").length}</h4>
+            <small className="text-muted">Finalizadas</small>
           </Card>
         </div>
         <div className="col-md-3">
           <Card className="premium-card text-center">
             <i
-              className="pi pi-check-circle mb-2"
-              style={{ fontSize: "2rem", color: "var(--sage-green)" }}
+              className="pi pi-times-circle mb-2"
+              style={{ fontSize: "2rem", color: "var(--light-brown)" }}
             ></i>
-            <h4>{sales.filter((s) => s.estado === "finalizado").length}</h4>
-            <small className="text-muted">Finalizadas</small>
+            <h4>{sales.filter((s) => s.estado === "cancelada").length}</h4>
+            <small className="text-muted">Canceladas</small>
           </Card>
         </div>
         <div className="col-md-3">
@@ -280,6 +282,7 @@ export default function AdminSales() {
             header="Propiedad"
             body={propertyTemplate}
             sortable
+            field="Propiedad.direccion"
             style={{ minWidth: "200px" }}
           />
           <Column
@@ -289,15 +292,24 @@ export default function AdminSales() {
             style={{ minWidth: "180px" }}
           />
           <Column
+            header="Agente"
+            body={agenteTemplate}
+            sortable
+            field="Usuario.nombre"
+            style={{ minWidth: "150px" }}
+          />
+          <Column
             header="Fecha"
             body={dateTemplate}
             sortable
+            field="fecha_venta"
             style={{ minWidth: "120px" }}
           />
           <Column
             header="Monto"
             body={amountTemplate}
             sortable
+            field="monto_total"
             style={{ minWidth: "130px" }}
           />
           <Column

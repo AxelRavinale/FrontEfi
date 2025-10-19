@@ -17,13 +17,16 @@ export default function AdminUsers() {
   const { users, createUser, updateUser, deleteUser, loading } = useUsers();
   const [visible, setVisible] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  
+  // ✅ CORREGIDO: usar campos que coincidan con el backend (nombre, no name)
   const [formData, setFormData] = useState({
-    name: "",
+    nombre: "",
     email: "",
-    age: 18,
+    edad: 18,
     password: "",
     rol: "cliente",
   });
+  
   const [globalFilter, setGlobalFilter] = useState("");
   const toast = useRef(null);
 
@@ -35,9 +38,9 @@ export default function AdminUsers() {
 
   const resetForm = () => {
     setFormData({
-      name: "",
+      nombre: "",
       email: "",
-      age: 18,
+      edad: 18,
       password: "",
       rol: "cliente",
     });
@@ -47,10 +50,10 @@ export default function AdminUsers() {
   const openEdit = (user) => {
     setEditingUser(user);
     setFormData({
-      name: user.name || "",
+      nombre: user.nombre || "",
       email: user.email || "",
-      age: user.age || 18,
-      password: "", // No mostramos la contraseña actual
+      edad: user.edad || 18,
+      password: "",
       rol: user.rol || "cliente",
     });
     setVisible(true);
@@ -58,7 +61,7 @@ export default function AdminUsers() {
 
   const handleSubmit = async () => {
     // Validaciones
-    if (!formData.name || !formData.email) {
+    if (!formData.nombre || !formData.email) {
       toast.current.show({
         severity: "error",
         summary: "Error",
@@ -112,17 +115,18 @@ export default function AdminUsers() {
       setVisible(false);
       resetForm();
     } catch (error) {
+      console.error('Error en handleSubmit:', error);
       toast.current.show({
         severity: "error",
         summary: "Error",
-        detail: error.message || "Error en la operación",
+        detail: error.response?.data?.message || error.message || "Error en la operación",
       });
     }
   };
 
   const handleDelete = (user) => {
     confirmDialog({
-      message: `¿Está seguro de eliminar al usuario "${user.name}"?`,
+      message: `¿Está seguro de eliminar al usuario "${user.nombre}"?`,
       header: "Confirmar Eliminación",
       icon: "pi pi-exclamation-triangle",
       acceptClassName: "p-button-danger",
@@ -236,7 +240,7 @@ export default function AdminUsers() {
           className="p-datatable-sm"
         >
           <Column
-            field="name"
+            field="nombre"
             header="Nombre"
             sortable
             style={{ minWidth: "200px" }}
@@ -249,7 +253,7 @@ export default function AdminUsers() {
             style={{ minWidth: "200px" }}
           />
           <Column
-            field="age"
+            field="edad"
             header="Edad"
             sortable
             style={{ minWidth: "80px" }}
@@ -289,9 +293,9 @@ export default function AdminUsers() {
             <label className="form-label fw-semibold">Nombre Completo *</label>
             <InputText
               placeholder="Ej: Juan Pérez"
-              value={formData.name}
+              value={formData.nombre}
               onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
+                setFormData({ ...formData, nombre: e.target.value })
               }
               className="w-100"
             />
@@ -313,8 +317,8 @@ export default function AdminUsers() {
           <div>
             <label className="form-label fw-semibold">Edad *</label>
             <InputNumber
-              value={formData.age}
-              onValueChange={(e) => setFormData({ ...formData, age: e.value })}
+              value={formData.edad}
+              onValueChange={(e) => setFormData({ ...formData, edad: e.value })}
               min={18}
               max={120}
               className="w-100"

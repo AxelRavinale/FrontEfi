@@ -4,29 +4,40 @@ import { Column } from "primereact/column";
 import { Button } from "primereact/button";
 import { Dialog } from "primereact/dialog";
 import { InputText } from "primereact/inputtext";
+import { Dropdown } from "primereact/dropdown";
 import { Toast } from "primereact/toast";
 import { confirmDialog } from "primereact/confirmdialog";
 import { Card } from "primereact/card";
 import { useClients } from "../../contexts/ClientsContext";
+import { useUsers } from "../../contexts/UsersContext";
 
 export default function AdminClients() {
-  const { clients, createClient, updateClient, deleteClient, loading } =
-    useClients();
+  const { clients, createClient, updateClient, deleteClient, loading } = useClients();
+  const { users } = useUsers(); // ✅ Para el dropdown de usuarios
   const [visible, setVisible] = useState(false);
   const [editingClient, setEditingClient] = useState(null);
+  
+  // ✅ CORREGIDO: campos según el backend
   const [formData, setFormData] = useState({
-    nombre: "",
-    email: "",
+    documento_identidad: "",
     telefono: "",
+    id_usuario: null,
   });
+  
   const [globalFilter, setGlobalFilter] = useState("");
   const toast = useRef(null);
 
+  // ✅ Opciones de usuarios para el dropdown
+  const userOptions = users.map(u => ({
+    label: `${u.nombre} (${u.email})`,
+    value: u.id
+  }));
+
   const resetForm = () => {
     setFormData({
-      nombre: "",
-      email: "",
+      documento_identidad: "",
       telefono: "",
+      id_usuario: null,
     });
     setEditingClient(null);
   };
@@ -34,31 +45,19 @@ export default function AdminClients() {
   const openEdit = (client) => {
     setEditingClient(client);
     setFormData({
-      nombre: client.nombre || "",
-      email: client.email || "",
+      documento_identidad: client.documento_identidad || "",
       telefono: client.telefono || "",
+      id_usuario: client.id_usuario || null,
     });
     setVisible(true);
   };
 
   const handleSubmit = async () => {
-    // Validaciones
-    if (!formData.nombre || !formData.email) {
+    if (!formData.documento_identidad || !formData.id_usuario) {
       toast.current.show({
         severity: "error",
         summary: "Error",
-        detail: "Nombre y email son obligatorios",
-      });
-      return;
-    }
-
-    // Validar email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      toast.current.show({
-        severity: "error",
-        summary: "Error",
-        detail: "Email inválido",
+        detail: "Documento de identidad y usuario son obligatorios",
       });
       return;
     }
@@ -85,14 +84,15 @@ export default function AdminClients() {
       toast.current.show({
         severity: "error",
         summary: "Error",
-        detail: error.message || "Error en la operación",
+        detail: error.response?.data?.message || error.message || "Error en la operación",
       });
     }
   };
 
   const handleDelete = (client) => {
+    const userName = client.Usuario?.nombre || "este cliente";
     confirmDialog({
-      message: `¿Está seguro de eliminar al cliente "${client.nombre}"?`,
+      message: `¿Está seguro de eliminar al cliente "${userName}"?`,
       header: "Confirmar Eliminación",
       icon: "pi pi-exclamation-triangle",
       acceptClassName: "p-button-danger",
@@ -117,6 +117,41 @@ export default function AdminClients() {
     });
   };
 
+  const nombreTemplate = (rowData) => {
+    return rowData.Usuario?.nombre || <span className="text-muted">Sin usuario</span>;
+  };
+
+  const emailTemplate = (rowData) => {
+    return rowData.Usuario?.email ? (
+      <a href={`mailto:${rowData.Usuario.email}`} className="text-decoration-none">
+        <i className="pi pi-envelope me-2"></i>
+        {rowData.Usuario.email}
+      </a>
+    ) : (
+      <span className="text-muted">Sin email</span>
+    );
+  };
+
+  const phoneTemplate = (rowData) => {
+    return rowData.telefono ? (
+      <span>
+        <i className="pi pi-phone me-2"></i>
+        {rowData.telefono}
+      </span>
+    ) : (
+      <span className="text-muted">Sin teléfono</span>
+    );
+  };
+
+  const documentTemplate = (rowData) => {
+    return (
+      <span>
+        <i className="pi pi-id-card me-2"></i>
+        {rowData.documento_identidad}
+      </span>
+    );
+  };
+
   const actionTemplate = (rowData) => {
     return (
       <div className="d-flex gap-2">
@@ -135,26 +170,6 @@ export default function AdminClients() {
           tooltipOptions={{ position: "top" }}
         />
       </div>
-    );
-  };
-
-  const emailTemplate = (rowData) => {
-    return (
-      <a href={`mailto:${rowData.email}`} className="text-decoration-none">
-        <i className="pi pi-envelope me-2"></i>
-        {rowData.email}
-      </a>
-    );
-  };
-
-  const phoneTemplate = (rowData) => {
-    return rowData.telefono ? (
-      <span>
-        <i className="pi pi-phone me-2"></i>
-        {rowData.telefono}
-      </span>
-    ) : (
-      <span className="text-muted">Sin teléfono</span>
     );
   };
 
@@ -207,23 +222,31 @@ export default function AdminClients() {
           className="p-datatable-sm"
         >
           <Column
-            field="nombre"
-            header="Nombre"
+            header="Documento"
+            body={documentTemplate}
             sortable
+            field="documento_identidad"
+            style={{ minWidth: "150px" }}
+          />
+          <Column
+            header="Nombre"
+            body={nombreTemplate}
+            sortable
+            field="Usuario.nombre"
             style={{ minWidth: "200px" }}
           />
           <Column
-            field="email"
             header="Email"
             body={emailTemplate}
             sortable
+            field="Usuario.email"
             style={{ minWidth: "200px" }}
           />
           <Column
-            field="telefono"
             header="Teléfono"
             body={phoneTemplate}
             sortable
+            field="telefono"
             style={{ minWidth: "150px" }}
           />
           <Column
@@ -251,25 +274,30 @@ export default function AdminClients() {
       >
         <div className="d-flex flex-column gap-3 py-3">
           <div>
-            <label className="form-label fw-semibold">Nombre Completo *</label>
-            <InputText
-              placeholder="Ej: Juan Pérez"
-              value={formData.nombre}
+            <label className="form-label fw-semibold">Usuario *</label>
+            <Dropdown
+              value={formData.id_usuario}
+              options={userOptions}
               onChange={(e) =>
-                setFormData({ ...formData, nombre: e.target.value })
+                setFormData({ ...formData, id_usuario: e.value })
               }
+              placeholder="Seleccione un usuario"
+              filter
               className="w-100"
+              disabled={editingClient} // No se puede cambiar en edición
             />
+            {editingClient && (
+              <small className="text-muted">El usuario no se puede cambiar en edición</small>
+            )}
           </div>
 
           <div>
-            <label className="form-label fw-semibold">Email *</label>
+            <label className="form-label fw-semibold">Documento de Identidad *</label>
             <InputText
-              type="email"
-              placeholder="Ej: juan@example.com"
-              value={formData.email}
+              placeholder="Ej: 12345678"
+              value={formData.documento_identidad}
               onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
+                setFormData({ ...formData, documento_identidad: e.target.value })
               }
               className="w-100"
             />

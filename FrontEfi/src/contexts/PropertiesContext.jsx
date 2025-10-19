@@ -11,16 +11,21 @@ export function PropertiesProvider({ children }) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (token) fetchProperties();
+    if (token) {
+      fetchProperties();
+    }
   }, [token]);
 
   async function fetchProperties() {
     setLoading(true);
     setError(null);
     try {
-      const data = await propertiesService.getAll(token);
+      // ✅ Ya no pasamos token, api/client.js lo maneja
+      const data = await propertiesService.getAll();
+      console.log('Propiedades cargadas:', data); // Debug
       setProperties(data);
     } catch (err) {
+      console.error('Error al cargar propiedades:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -29,7 +34,7 @@ export function PropertiesProvider({ children }) {
 
   async function getPropertyById(id) {
     try {
-      return await propertiesService.getById(id, token);
+      return await propertiesService.getById(id);
     } catch (err) {
       setError(err.message);
       return null;
@@ -38,34 +43,36 @@ export function PropertiesProvider({ children }) {
 
   async function createProperty(payload) {
     try {
-      const newProp = await propertiesService.create(payload, token);
-      setProperties(prev => [...prev, newProp]);
+      const newProp = await propertiesService.create(payload);
+      await fetchProperties(); // ✅ Recargar lista completa
       return newProp;
     } catch (err) {
+      console.error('Error al crear propiedad:', err);
       setError(err.message);
-      return null;
+      throw err;
     }
   }
 
   async function updateProperty(id, payload) {
     try {
-      const updated = await propertiesService.update(id, payload, token);
-      setProperties(prev =>
-        prev.map(p => (p.id === id ? updated : p))
-      );
+      const updated = await propertiesService.update(id, payload);
+      await fetchProperties(); // ✅ Recargar lista completa
       return updated;
     } catch (err) {
+      console.error('Error al actualizar propiedad:', err);
       setError(err.message);
-      return null;
+      throw err;
     }
   }
 
   async function deleteProperty(id) {
     try {
-      await propertiesService.remove(id, token);
-      setProperties(prev => prev.filter(p => p.id !== id));
+      await propertiesService.remove(id);
+      await fetchProperties(); // ✅ Recargar lista completa
     } catch (err) {
+      console.error('Error al eliminar propiedad:', err);
       setError(err.message);
+      throw err;
     }
   }
 
@@ -88,5 +95,9 @@ export function PropertiesProvider({ children }) {
 }
 
 export function useProperties() {
-  return useContext(PropertiesContext);
+  const context = useContext(PropertiesContext);
+  if (!context) {
+    throw new Error('useProperties debe usarse dentro de PropertiesProvider');
+  }
+  return context;
 }
