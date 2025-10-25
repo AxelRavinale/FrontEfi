@@ -21,7 +21,7 @@ export default function AgenteLayout() {
   const menuItems = [
     {
       label: "Dashboard",
-      icon: "🏠",
+      icon: "📊",
       path: "/agente/dashboard",
     },
     {
@@ -48,23 +48,34 @@ export default function AgenteLayout() {
 
   const isActive = (path) => location.pathname === path;
 
-  // Estilos
+  // Estilos - Tema AGENTE (Verde/Natural)
   const navbarStyle = {
-    background: "linear-gradient(to right, #FEFDFB, #FFF9F0)",
-    borderBottom: "2px solid #E8D5BC",
+    background: "linear-gradient(to right, #1a3a2e, #225240)",
+    borderBottom: "2px solid #2d5f4d",
     padding: "1rem 0",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+    boxShadow: "0 4px 12px rgba(34, 82, 64, 0.3)",
   };
 
   const brandStyle = {
     fontSize: "1.5rem",
     fontWeight: "700",
-    color: "#8B6914",
+    color: "white",
     textDecoration: "none",
     display: "flex",
     alignItems: "center",
     gap: "10px",
     transition: "transform 0.3s ease",
+  };
+
+  const agenteBadgeStyle = {
+    background: "linear-gradient(135deg, #1e8449 0%, #186a3b 100%)",
+    color: "white",
+    fontSize: "0.7rem",
+    padding: "3px 8px",
+    borderRadius: "12px",
+    fontWeight: "600",
+    marginLeft: "8px",
+    boxShadow: "0 2px 6px rgba(30, 132, 73, 0.4)",
   };
 
   const getButtonStyle = (index, isActiveBtn) => ({
@@ -74,17 +85,17 @@ export default function AgenteLayout() {
     padding: "10px 20px",
     border: "none",
     background: isActiveBtn 
-      ? "linear-gradient(135deg, #D4AF37 0%, #C9A84E 100%)"
+      ? "linear-gradient(135deg, #1e8449 0%, #186a3b 100%)"
       : hoveredItem === index 
-        ? "linear-gradient(135deg, #D4AF37 0%, #C9A84E 100%)"
+        ? "linear-gradient(135deg, #1e8449 0%, #186a3b 100%)"
         : "transparent",
     borderRadius: "12px",
-    color: isActiveBtn || hoveredItem === index ? "white" : "#6c5d3f",
+    color: isActiveBtn || hoveredItem === index ? "white" : "#e8f8f5",
     fontWeight: "500",
     cursor: "pointer",
     transition: "all 0.3s ease",
     boxShadow: isActiveBtn || hoveredItem === index 
-      ? "0 4px 12px rgba(212, 175, 55, 0.3)" 
+      ? "0 4px 12px rgba(30, 132, 73, 0.4)" 
       : "none",
     transform: hoveredItem === index ? "translateY(-2px)" : "translateY(0)",
   });
@@ -100,22 +111,22 @@ export default function AgenteLayout() {
     width: "42px",
     height: "42px",
     borderRadius: "50%",
-    background: "linear-gradient(135deg, #F5E6D3 0%, #E8D5BC 100%)",
+    background: "linear-gradient(135deg, #1e8449 0%, #186a3b 100%)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     fontSize: "1.1rem",
     fontWeight: "600",
-    border: "2px solid #D4AF37",
-    color: "#8B6914",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+    border: "2px solid #145a32",
+    color: "white",
+    boxShadow: "0 2px 8px rgba(30, 132, 73, 0.5)",
   };
 
   const logoutButtonStyle = {
     padding: "10px 24px",
     background: hoverLogout
-      ? "linear-gradient(135deg, #C9A84E 0%, #B8973D 100%)"
-      : "linear-gradient(135deg, #D4AF37 0%, #C9A84E 100%)",
+      ? "linear-gradient(135deg, #186a3b 0%, #145a32 100%)"
+      : "linear-gradient(135deg, #1e8449 0%, #186a3b 100%)",
     color: "white",
     border: "none",
     borderRadius: "12px",
@@ -124,13 +135,13 @@ export default function AgenteLayout() {
     alignItems: "center",
     gap: "8px",
     transition: "all 0.3s ease",
-    boxShadow: "0 4px 12px rgba(212, 175, 55, 0.3)",
+    boxShadow: "0 4px 12px rgba(30, 132, 73, 0.4)",
     transform: hoverLogout ? "translateY(-2px)" : "translateY(0)",
     cursor: "pointer",
   };
 
   const userInfoStyle = {
-    color: "#6c5d3f",
+    color: "white",
     fontSize: "0.9rem",
     fontWeight: "500",
     display: "flex",
@@ -140,14 +151,15 @@ export default function AgenteLayout() {
 
   return (
     <>
-      {/* Navbar Moderno */}
+      {/* Navbar Moderno - Agente */}
       <nav style={navbarStyle}>
         <div className="container-fluid px-4">
           <div className="d-flex justify-content-between align-items-center flex-wrap">
-            {/* Logo/Marca */}
+            {/* Logo/Marca con badge Agente */}
             <a href="#" style={brandStyle}>
               <span style={{ fontSize: "1.8rem" }}>🏘️</span>
               <span>Inmobiliaria</span>
+              <span style={agenteBadgeStyle}>AGENTE</span>
             </a>
 
             {/* Menú de navegación - Desktop */}
@@ -191,11 +203,11 @@ export default function AgenteLayout() {
               className="btn d-lg-none"
               type="button"
               data-bs-toggle="collapse"
-              data-bs-target="#mobileMenu"
+              data-bs-target="#mobileMenuAgente"
               style={{
-                border: "2px solid #D4AF37",
+                border: "2px solid #1e8449",
                 borderRadius: "8px",
-                color: "#8B6914",
+                color: "white",
               }}
             >
               ☰
@@ -203,7 +215,7 @@ export default function AgenteLayout() {
           </div>
 
           {/* Menú desplegable móvil */}
-          <div className="collapse d-lg-none mt-3" id="mobileMenu">
+          <div className="collapse d-lg-none mt-3" id="mobileMenuAgente">
             <div className="d-flex flex-column gap-2">
               {menuItems.map((item, index) => (
                 <button
@@ -220,13 +232,16 @@ export default function AgenteLayout() {
               ))}
               <div
                 className="mt-3 pt-3"
-                style={{ borderTop: "1px solid #E8D5BC" }}
+                style={{ borderTop: "1px solid #229954" }}
               >
                 <div className="d-flex align-items-center gap-3 mb-3">
                   <div style={avatarStyle}>
                     {user?.name?.charAt(0).toUpperCase()}
                   </div>
-                  <span style={userInfoStyle}>{user?.name}</span>
+                  <div>
+                    <span style={userInfoStyle}>{user?.name}</span>
+                    <div style={agenteBadgeStyle}>AGENTE</div>
+                  </div>
                 </div>
                 <button
                   style={{ ...logoutButtonStyle, width: "100%" }}
@@ -241,12 +256,12 @@ export default function AgenteLayout() {
         </div>
       </nav>
 
-      {/* Contenido principal */}
+      {/* Contenido principal - Fondo claro para Agente */}
       <div
         className="container-fluid p-4"
         style={{
           minHeight: "calc(100vh - 80px)",
-          background: "linear-gradient(to bottom, #FEFDFB, #FFF9F0)",
+          background: "linear-gradient(to bottom, #d5f4e6, #a9dfbf)",
         }}
       >
         <Routes>
