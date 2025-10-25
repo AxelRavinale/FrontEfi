@@ -17,6 +17,7 @@ export default function AgenteLayout() {
   const location = useLocation();
   const [hoveredItem, setHoveredItem] = useState(null);
   const [hoverLogout, setHoverLogout] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
 
   const menuItems = [
     {
@@ -59,7 +60,7 @@ export default function AgenteLayout() {
   const brandStyle = {
     fontSize: "1.5rem",
     fontWeight: "700",
-    color: "white",
+    color: "#7dd87d",
     textDecoration: "none",
     display: "flex",
     alignItems: "center",
@@ -68,14 +69,14 @@ export default function AgenteLayout() {
   };
 
   const agenteBadgeStyle = {
-    background: "linear-gradient(135deg, #1e8449 0%, #186a3b 100%)",
+    background: "linear-gradient(135deg, #52b788 0%, #40916c 100%)",
     color: "white",
     fontSize: "0.7rem",
     padding: "3px 8px",
     borderRadius: "12px",
     fontWeight: "600",
     marginLeft: "8px",
-    boxShadow: "0 2px 6px rgba(30, 132, 73, 0.4)",
+    boxShadow: "0 2px 6px rgba(82, 183, 136, 0.4)",
   };
 
   const getButtonStyle = (index, isActiveBtn) => ({
@@ -85,17 +86,17 @@ export default function AgenteLayout() {
     padding: "10px 20px",
     border: "none",
     background: isActiveBtn 
-      ? "linear-gradient(135deg, #1e8449 0%, #186a3b 100%)"
+      ? "linear-gradient(135deg, #52b788 0%, #40916c 100%)"
       : hoveredItem === index 
-        ? "linear-gradient(135deg, #1e8449 0%, #186a3b 100%)"
+        ? "linear-gradient(135deg, #52b788 0%, #40916c 100%)"
         : "transparent",
     borderRadius: "12px",
-    color: isActiveBtn || hoveredItem === index ? "white" : "#e8f8f5",
+    color: isActiveBtn || hoveredItem === index ? "white" : "#b7e4c7",
     fontWeight: "500",
     cursor: "pointer",
     transition: "all 0.3s ease",
     boxShadow: isActiveBtn || hoveredItem === index 
-      ? "0 4px 12px rgba(30, 132, 73, 0.4)" 
+      ? "0 4px 12px rgba(82, 183, 136, 0.4)" 
       : "none",
     transform: hoveredItem === index ? "translateY(-2px)" : "translateY(0)",
   });
@@ -111,22 +112,22 @@ export default function AgenteLayout() {
     width: "42px",
     height: "42px",
     borderRadius: "50%",
-    background: "linear-gradient(135deg, #1e8449 0%, #186a3b 100%)",
+    background: "linear-gradient(135deg, #52b788 0%, #40916c 100%)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     fontSize: "1.1rem",
     fontWeight: "600",
-    border: "2px solid #145a32",
+    border: "2px solid #2d5f4d",
     color: "white",
-    boxShadow: "0 2px 8px rgba(30, 132, 73, 0.5)",
+    boxShadow: "0 2px 8px rgba(82, 183, 136, 0.5)",
   };
 
   const logoutButtonStyle = {
     padding: "10px 24px",
     background: hoverLogout
-      ? "linear-gradient(135deg, #186a3b 0%, #145a32 100%)"
-      : "linear-gradient(135deg, #1e8449 0%, #186a3b 100%)",
+      ? "linear-gradient(135deg, #40916c 0%, #2d6a4f 100%)"
+      : "linear-gradient(135deg, #52b788 0%, #40916c 100%)",
     color: "white",
     border: "none",
     borderRadius: "12px",
@@ -135,18 +136,33 @@ export default function AgenteLayout() {
     alignItems: "center",
     gap: "8px",
     transition: "all 0.3s ease",
-    boxShadow: "0 4px 12px rgba(30, 132, 73, 0.4)",
+    boxShadow: "0 4px 12px rgba(82, 183, 136, 0.4)",
     transform: hoverLogout ? "translateY(-2px)" : "translateY(0)",
     cursor: "pointer",
   };
 
   const userInfoStyle = {
-    color: "white",
+    color: "#b7e4c7",
     fontSize: "0.9rem",
     fontWeight: "500",
     display: "flex",
     alignItems: "center",
     gap: "8px",
+  };
+
+  const darkModeToggleStyle = {
+    background: darkMode ? "#52b788" : "rgba(82, 183, 136, 0.2)",
+    border: "2px solid #52b788",
+    borderRadius: "20px",
+    padding: "8px 16px",
+    color: darkMode ? "white" : "#52b788",
+    cursor: "pointer",
+    transition: "all 0.3s ease",
+    fontWeight: "600",
+    fontSize: "0.9rem",
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
   };
 
   return (
@@ -178,8 +194,17 @@ export default function AgenteLayout() {
               ))}
             </div>
 
-            {/* Usuario y Salir */}
+            {/* Usuario, Dark Mode y Salir */}
             <div className="d-none d-lg-flex align-items-center gap-3">
+              {/* Toggle Modo Oscuro */}
+              <button
+                style={darkModeToggleStyle}
+                onClick={() => setDarkMode(!darkMode)}
+              >
+                <span>{darkMode ? "🌙" : "☀️"}</span>
+                <span>{darkMode ? "Oscuro" : "Claro"}</span>
+              </button>
+
               <span style={userInfoStyle}>
                 <span>👤</span>
                 <span>{user?.name}</span>
@@ -205,9 +230,9 @@ export default function AgenteLayout() {
               data-bs-toggle="collapse"
               data-bs-target="#mobileMenuAgente"
               style={{
-                border: "2px solid #1e8449",
+                border: "2px solid #52b788",
                 borderRadius: "8px",
-                color: "white",
+                color: "#7dd87d",
               }}
             >
               ☰
@@ -217,6 +242,15 @@ export default function AgenteLayout() {
           {/* Menú desplegable móvil */}
           <div className="collapse d-lg-none mt-3" id="mobileMenuAgente">
             <div className="d-flex flex-column gap-2">
+              {/* Toggle modo oscuro móvil */}
+              <button
+                style={{ ...darkModeToggleStyle, width: "100%", justifyContent: "center" }}
+                onClick={() => setDarkMode(!darkMode)}
+              >
+                <span>{darkMode ? "🌙" : "☀️"}</span>
+                <span>{darkMode ? "Modo Oscuro" : "Modo Claro"}</span>
+              </button>
+
               {menuItems.map((item, index) => (
                 <button
                   key={index}
@@ -232,7 +266,7 @@ export default function AgenteLayout() {
               ))}
               <div
                 className="mt-3 pt-3"
-                style={{ borderTop: "1px solid #229954" }}
+                style={{ borderTop: "1px solid #2d5f4d" }}
               >
                 <div className="d-flex align-items-center gap-3 mb-3">
                   <div style={avatarStyle}>
@@ -256,12 +290,15 @@ export default function AgenteLayout() {
         </div>
       </nav>
 
-      {/* Contenido principal - Fondo claro para Agente */}
+      {/* Contenido principal - Con modo oscuro */}
       <div
         className="container-fluid p-4"
         style={{
           minHeight: "calc(100vh - 80px)",
-          background: "linear-gradient(to bottom, #d5f4e6, #a9dfbf)",
+          background: darkMode 
+            ? "linear-gradient(to bottom, #2d5f4d, #1b4332)"
+            : "linear-gradient(to bottom, #d5f4e6, #a9dfbf)",
+          transition: "background 0.3s ease",
         }}
       >
         <Routes>

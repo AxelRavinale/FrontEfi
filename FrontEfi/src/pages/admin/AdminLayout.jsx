@@ -18,6 +18,7 @@ export default function AdminLayout() {
   const location = useLocation();
   const [hoveredItem, setHoveredItem] = useState(null);
   const [hoverLogout, setHoverLogout] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
 
   const menuItems = [
     {
@@ -65,7 +66,7 @@ export default function AdminLayout() {
   const brandStyle = {
     fontSize: "1.5rem",
     fontWeight: "700",
-    color: "#ecf0f1",
+    color: "#e94560",
     textDecoration: "none",
     display: "flex",
     alignItems: "center",
@@ -96,7 +97,7 @@ export default function AdminLayout() {
         ? "linear-gradient(135deg, #e94560 0%, #c72c41 100%)"
         : "transparent",
     borderRadius: "12px",
-    color: isActiveBtn || hoveredItem === index ? "white" : "#ecf0f1",
+    color: isActiveBtn || hoveredItem === index ? "white" : "#a8b2d1",
     fontWeight: "500",
     cursor: "pointer",
     transition: "all 0.3s ease",
@@ -123,7 +124,7 @@ export default function AdminLayout() {
     justifyContent: "center",
     fontSize: "1.1rem",
     fontWeight: "600",
-    border: "2px solid #34495e",
+    border: "2px solid #0f3460",
     color: "white",
     boxShadow: "0 2px 8px rgba(233, 69, 96, 0.5)",
   };
@@ -147,12 +148,27 @@ export default function AdminLayout() {
   };
 
   const userInfoStyle = {
-    color: "#ecf0f1",
+    color: "#a8b2d1",
     fontSize: "0.9rem",
     fontWeight: "500",
     display: "flex",
     alignItems: "center",
     gap: "8px",
+  };
+
+  const darkModeToggleStyle = {
+    background: darkMode ? "#e94560" : "rgba(233, 69, 96, 0.2)",
+    border: "2px solid #e94560",
+    borderRadius: "20px",
+    padding: "8px 16px",
+    color: darkMode ? "white" : "#e94560",
+    cursor: "pointer",
+    transition: "all 0.3s ease",
+    fontWeight: "600",
+    fontSize: "0.9rem",
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
   };
 
   return (
@@ -184,8 +200,17 @@ export default function AdminLayout() {
               ))}
             </div>
 
-            {/* Usuario y Salir */}
+            {/* Usuario, Dark Mode y Salir */}
             <div className="d-none d-lg-flex align-items-center gap-3">
+              {/* Toggle Modo Oscuro */}
+              <button
+                style={darkModeToggleStyle}
+                onClick={() => setDarkMode(!darkMode)}
+              >
+                <span>{darkMode ? "🌙" : "☀️"}</span>
+                <span>{darkMode ? "Oscuro" : "Claro"}</span>
+              </button>
+
               <span style={userInfoStyle}>
                 <span>👨‍💼</span>
                 <span>{user?.name}</span>
@@ -223,6 +248,15 @@ export default function AdminLayout() {
           {/* Menú desplegable móvil */}
           <div className="collapse d-lg-none mt-3" id="mobileMenuAdmin">
             <div className="d-flex flex-column gap-2">
+              {/* Toggle modo oscuro móvil */}
+              <button
+                style={{ ...darkModeToggleStyle, width: "100%", justifyContent: "center" }}
+                onClick={() => setDarkMode(!darkMode)}
+              >
+                <span>{darkMode ? "🌙" : "☀️"}</span>
+                <span>{darkMode ? "Modo Oscuro" : "Modo Claro"}</span>
+              </button>
+
               {menuItems.map((item, index) => (
                 <button
                   key={index}
@@ -238,7 +272,7 @@ export default function AdminLayout() {
               ))}
               <div
                 className="mt-3 pt-3"
-                style={{ borderTop: "1px solid #34495e" }}
+                style={{ borderTop: "1px solid #0f3460" }}
               >
                 <div className="d-flex align-items-center gap-3 mb-3">
                   <div style={avatarStyle}>
@@ -262,12 +296,15 @@ export default function AdminLayout() {
         </div>
       </nav>
 
-      {/* Contenido principal - Fondo claro para Admin */}
+      {/* Contenido principal - Con modo oscuro */}
       <div
         className="container-fluid p-4"
         style={{
           minHeight: "calc(100vh - 80px)",
-          background: "linear-gradient(to bottom, #d6ebf0ff, #a5b6c2ff)",
+          background: darkMode 
+            ? "linear-gradient(to bottom, #0f3460, #16213e)"
+            : "linear-gradient(to bottom, #e8eaf6, #c5cae9)",
+          transition: "background 0.3s ease",
         }}
       >
         <Routes>
