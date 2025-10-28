@@ -49,10 +49,10 @@ export default function AgenteLayout() {
     <div className="d-flex align-items-center gap-3">
       <span className="text-muted">
         <i className="pi pi-briefcase me-2"></i>
-        Agente: {user?.name}
+        Agente: {user?.nombre} 
       </span>
       <Avatar
-        label={user?.name?.charAt(0).toUpperCase()}
+        label={user?.nombre?.charAt(0).toUpperCase()}
         shape="circle"
         style={{ background: "var(--sage-green)", color: "white" }}
       />

@@ -5,23 +5,28 @@ import clientsService from "../service/clients";
 const ClientsContext = createContext();
 
 export function ClientsProvider({ children }) {
-  const { token } = useAuth();
+  const { user } = useAuth();
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // ✅ CORREGIDO: Removido AbortController que causaba conflictos
   useEffect(() => {
-    if (token) fetchClients();
-  }, [token]);
+    if (user?.id && (user.rol === 'admin' || user.rol === 'agente')) {
+      fetchClients();
+    }
+  }, [user?.id, user?.rol]);
 
   async function fetchClients() {
     setLoading(true);
     setError(null);
     try {
-      const data = await clientsService.getAll(token);
+      const data = await clientsService.getAll();
       setClients(data);
     } catch (err) {
+      console.error('Error al obtener clientes:', err);
       setError(err.message);
+      setClients([]);
     } finally {
       setLoading(false);
     }
@@ -29,7 +34,7 @@ export function ClientsProvider({ children }) {
 
   async function getClientById(id) {
     try {
-      return await clientsService.getById(id, token);
+      return await clientsService.getById(id);
     } catch (err) {
       setError(err.message);
       return null;
@@ -38,34 +43,35 @@ export function ClientsProvider({ children }) {
 
   async function createClient(payload) {
     try {
-      const newClient = await clientsService.create(payload, token);
+      const newClient = await clientsService.create(payload);
       setClients(prev => [...prev, newClient]);
       return newClient;
     } catch (err) {
       setError(err.message);
-      return null;
+      throw err;
     }
   }
 
   async function updateClient(id, payload) {
     try {
-      const updated = await clientsService.update(id, payload, token);
+      const updated = await clientsService.update(id, payload);
       setClients(prev =>
         prev.map(c => (c.id === id ? updated : c))
       );
       return updated;
     } catch (err) {
       setError(err.message);
-      return null;
+      throw err;
     }
   }
 
   async function deleteClient(id) {
     try {
-      await clientsService.remove(id, token);
+      await clientsService.remove(id);
       setClients(prev => prev.filter(c => c.id !== id));
     } catch (err) {
       setError(err.message);
+      throw err;
     }
   }
 

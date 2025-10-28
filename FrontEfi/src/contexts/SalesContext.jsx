@@ -5,43 +5,53 @@ import salesService from "../service/sales";
 const SalesContext = createContext();
 
 export function SalesProvider({ children }) {
-  const { token, user } = useAuth();
+  const { user } = useAuth();
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  //  Obtener ventas del usuario logueado si es cliente
+  // ✅ CORREGIDO: Removido AbortController que causaba conflictos
   useEffect(() => {
-    if (token && user) {
-      if (user.rol === "cliente") {
-        fetchMySales(user.id);
-      } else {
-        fetchAllSales();
-      }
+    if (user?.id) {
+      loadSales();
     }
-  }, [token, user]);
+  }, [user?.id, user?.rol]);
+
+  async function loadSales() {
+    if (!user) return;
+
+    if (user.rol === 'admin' || user.rol === 'agente') {
+      await fetchAllSales();
+    } else if (user.rol === 'cliente') {
+      await fetchMySales(user.id);
+    }
+  }
 
   async function fetchAllSales() {
     setLoading(true);
     setError(null);
     try {
-      const data = await salesService.getAll(token);
+      const data = await salesService.getAll();
       setSales(data);
     } catch (err) {
-      setError(err.message);
+      console.error('Error al cargar ventas:', err);
+      setError(err.response?.data?.message || err.message);
+      setSales([]);
     } finally {
       setLoading(false);
     }
   }
 
-  async function fetchMySales(clientId) {
+  async function fetchMySales(userId) {
     setLoading(true);
     setError(null);
     try {
-      const data = await salesService.getByClient(clientId, token);
+      const data = await salesService.getByClient(userId);
       setSales(data);
     } catch (err) {
-      setError(err.message);
+      console.error('Error al cargar mis ventas:', err);
+      setError(err.response?.data?.message || err.message);
+      setSales([]);
     } finally {
       setLoading(false);
     }
@@ -49,38 +59,47 @@ export function SalesProvider({ children }) {
 
   async function createSale(payload) {
     try {
-      const newSale = await salesService.create(payload, token);
-      setSales(prev => [...prev, newSale]);
+      const newSale = await salesService.create(payload);
+      await loadSales();
       return newSale;
     } catch (err) {
-      setError(err.message);
-      return null;
+      const errorMsg = err.response?.data?.message || err.message;
+      setError(errorMsg);
+      throw new Error(errorMsg);
     }
   }
 
   async function updateSale(id, payload) {
     try {
-      const updated = await salesService.update(id, payload, token);
-      setSales(prev =>
-        prev.map(s => (s.id === id ? updated : s))
-      );
+      const updated = await salesService.update(id, payload);
+      await loadSales();
       return updated;
     } catch (err) {
-      setError(err.message);
-      return null;
+      const errorMsg = err.response?.data?.message || err.message;
+      setError(errorMsg);
+      throw new Error(errorMsg);
     }
   }
 
   async function cancelSale(id) {
     try {
-      const canceled = await salesService.cancel(id, token);
-      setSales(prev =>
-        prev.map(s => (s.id === id ? canceled : s))
-      );
-      return canceled;
+      await salesService.cancel(id);
+      await loadSales();
     } catch (err) {
-      setError(err.message);
-      return null;
+      const errorMsg = err.response?.data?.message || err.message;
+      setError(errorMsg);
+      throw new Error(errorMsg);
+    }
+  }
+
+  async function deleteSalePermanently(id) {
+    try {
+      await salesService.removePermanently(id);
+      await loadSales();
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || err.message;
+      setError(errorMsg);
+      throw new Error(errorMsg);
     }
   }
 
@@ -95,6 +114,7 @@ export function SalesProvider({ children }) {
         createSale,
         updateSale,
         cancelSale,
+        deleteSalePermanently,
       }}
     >
       {children}
@@ -103,5 +123,9 @@ export function SalesProvider({ children }) {
 }
 
 export function useSales() {
-  return useContext(SalesContext);
+  const context = useContext(SalesContext);
+  if (!context) {
+    throw new Error('useSales debe usarse dentro de SalesProvider');
+  }
+  return context;
 }

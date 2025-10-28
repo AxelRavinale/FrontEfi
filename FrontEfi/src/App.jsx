@@ -2,6 +2,8 @@ import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AppProviders } from "./components/AppProviders";
 import PrivateRoute from "./components/PrivateRoute";
+import Unauthorized from "./pages/Unauthorized";
+
 
 // Importar páginas públicas
 import LandingPage from "./pages/LandingPage";
@@ -31,6 +33,8 @@ function App() {
         <Route path="/landing" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/unauthorized" element={<Unauthorized />} />
+
 
         {/* Admin - Rutas protegidas */}
         <Route

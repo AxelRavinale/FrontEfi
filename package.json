@@ -1,6 +1,10 @@
 {
   "dependencies": {
     "jspdf": "^3.0.3",
-    "jspdf-autotable": "^5.0.2"
+    "jspdf-autotable": "^5.0.2",
+    "primeicons": "^7.0.0",
+    "primereact": "^10.9.7",
+    "react-router-dom": "^7.9.3",
+    "react-toastify": "^11.0.5"
   }
 }

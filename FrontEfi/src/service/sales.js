@@ -1,45 +1,51 @@
-// src/services/sales.js
 import api from "../api/client";
 
-const endpoint = "/ventas";
+const endpoint = "/api/ventas";
 
 function unwrap(res) {
   return res.data?.data ?? res.data;
 }
 
-const getAll = async (token) => {
-  const res = await api.get(endpoint, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+// Obtener todas las ventas (admin y agente)
+const getAll = async () => {
+  const res = await api.get(endpoint);
   return unwrap(res);
 };
 
-const getByClient = async (clientId, token) => {
-  const res = await api.get(`${endpoint}/cliente/${clientId}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+// Obtener ventas por cliente
+const getByClient = async (clientId) => {
+  const res = await api.get(`${endpoint}/cliente/${clientId}`);
   return unwrap(res);
 };
 
-const create = async (payload, token) => {
-  const res = await api.post(endpoint, payload, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+// Crear nueva venta
+const create = async (payload) => {
+  const res = await api.post(endpoint, payload);
   return unwrap(res);
 };
 
-const update = async (id, payload, token) => {
-  const res = await api.put(`${endpoint}/${id}`, payload, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+// Actualizar venta
+const update = async (id, payload) => {
+  const res = await api.put(`${endpoint}/${id}`, payload);
   return unwrap(res);
 };
 
-const cancel = async (id, token) => {
-  const res = await api.patch(`${endpoint}/${id}/cancelar`, {}, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+// Cancelar venta (eliminación lógica)
+const cancel = async (id) => {
+  const res = await api.delete(`${endpoint}/${id}`);
   return unwrap(res);
 };
 
-export default { getAll, getByClient, create, update, cancel };
+// ⚠️ Eliminación FÍSICA (solo admin) - si la implementas en el backend
+const removePermanently = async (id) => {
+  await api.delete(`${endpoint}/${id}/permanente`);
+};
+
+export default { 
+  getAll, 
+  getByClient, 
+  create, 
+  update, 
+  cancel,
+  removePermanently 
+};

@@ -5,43 +5,53 @@ import rentalsService from "../service/rentals";
 const RentalsContext = createContext();
 
 export function RentalsProvider({ children }) {
-  const { token, user } = useAuth();
+  const { user } = useAuth();
   const [rentals, setRentals] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  //  Cargar alquileres según rol
+  // ✅ CORREGIDO: Removido AbortController que causaba conflictos
   useEffect(() => {
-    if (token && user) {
-      if (user.rol === "cliente") {
-        fetchMyRentals(user.id);
-      } else {
-        fetchAllRentals();
-      }
+    if (user?.id) {
+      loadRentals();
     }
-  }, [token, user]);
+  }, [user?.id, user?.rol]);
+
+  async function loadRentals() {
+    if (!user) return;
+
+    if (user.rol === 'admin' || user.rol === 'agente') {
+      await fetchAllRentals();
+    } else if (user.rol === 'cliente') {
+      await fetchMyRentals(user.id);
+    }
+  }
 
   async function fetchAllRentals() {
     setLoading(true);
     setError(null);
     try {
-      const data = await rentalsService.getAll(token);
+      const data = await rentalsService.getAll();
       setRentals(data);
     } catch (err) {
-      setError(err.message);
+      console.error('Error al cargar alquileres:', err);
+      setError(err.response?.data?.message || err.message);
+      setRentals([]);
     } finally {
       setLoading(false);
     }
   }
 
-  async function fetchMyRentals(clientId) {
+  async function fetchMyRentals(userId) {
     setLoading(true);
     setError(null);
     try {
-      const data = await rentalsService.getByClient(clientId, token);
+      const data = await rentalsService.getByClient(userId);
       setRentals(data);
     } catch (err) {
-      setError(err.message);
+      console.error('Error al cargar mis alquileres:', err);
+      setError(err.response?.data?.message || err.message);
+      setRentals([]);
     } finally {
       setLoading(false);
     }
@@ -49,38 +59,47 @@ export function RentalsProvider({ children }) {
 
   async function createRental(payload) {
     try {
-      const newRental = await rentalsService.create(payload, token);
-      setRentals(prev => [...prev, newRental]);
+      const newRental = await rentalsService.create(payload);
+      await loadRentals();
       return newRental;
     } catch (err) {
-      setError(err.message);
-      return null;
+      const errorMsg = err.response?.data?.message || err.message;
+      setError(errorMsg);
+      throw new Error(errorMsg);
     }
   }
 
   async function updateRental(id, payload) {
     try {
-      const updated = await rentalsService.update(id, payload, token);
-      setRentals(prev =>
-        prev.map(r => (r.id === id ? updated : r))
-      );
+      const updated = await rentalsService.update(id, payload);
+      await loadRentals();
       return updated;
     } catch (err) {
-      setError(err.message);
-      return null;
+      const errorMsg = err.response?.data?.message || err.message;
+      setError(errorMsg);
+      throw new Error(errorMsg);
     }
   }
 
   async function cancelRental(id) {
     try {
-      const canceled = await rentalsService.cancel(id, token);
-      setRentals(prev =>
-        prev.map(r => (r.id === id ? canceled : r))
-      );
-      return canceled;
+      await rentalsService.cancel(id);
+      await loadRentals();
     } catch (err) {
-      setError(err.message);
-      return null;
+      const errorMsg = err.response?.data?.message || err.message;
+      setError(errorMsg);
+      throw new Error(errorMsg);
+    }
+  }
+
+  async function deleteRentalPermanently(id) {
+    try {
+      await rentalsService.removePermanently(id);
+      await loadRentals();
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || err.message;
+      setError(errorMsg);
+      throw new Error(errorMsg);
     }
   }
 
@@ -95,6 +114,7 @@ export function RentalsProvider({ children }) {
         createRental,
         updateRental,
         cancelRental,
+        deleteRentalPermanently,
       }}
     >
       {children}
@@ -103,5 +123,9 @@ export function RentalsProvider({ children }) {
 }
 
 export function useRentals() {
-  return useContext(RentalsContext);
+  const context = useContext(RentalsContext);
+  if (!context) {
+    throw new Error('useRentals debe usarse dentro de RentalsProvider');
+  }
+  return context;
 }

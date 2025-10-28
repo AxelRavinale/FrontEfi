@@ -6,22 +6,34 @@ import { Dialog } from "primereact/dialog";
 import { InputText } from "primereact/inputtext";
 import { InputNumber } from "primereact/inputnumber";
 import { Dropdown } from "primereact/dropdown";
+import { InputTextarea } from "primereact/inputtextarea";
 import { Toast } from "primereact/toast";
 import { Card } from "primereact/card";
 import { Tag } from "primereact/tag";
 import { useProperties } from "../../contexts/PropertiesContext";
 
 export default function AgenteProperties() {
-  const { properties, createProperty, updateProperty, loading } =
-    useProperties();
+  const { 
+    properties, 
+    tiposPropiedad,
+    createProperty, 
+    updateProperty, 
+    loading 
+  } = useProperties();
+  
   const [visible, setVisible] = useState(false);
   const [editingProperty, setEditingProperty] = useState(null);
+  
+  // ✅ CORREGIDO: Campos según el backend
   const [formData, setFormData] = useState({
-    nombre: "",
     direccion: "",
     precio: 0,
     estado: "disponible",
+    descripcion: "",
+    tamaño: 0,
+    tipo_id: null
   });
+  
   const [globalFilter, setGlobalFilter] = useState("");
   const toast = useRef(null);
 
@@ -31,34 +43,49 @@ export default function AgenteProperties() {
     { label: "Vendida", value: "vendida" },
   ];
 
+  // ✅ Convertir tipos de propiedad al formato de Dropdown
+  const tipoOptions = tiposPropiedad.map(tipo => ({
+    label: tipo.nombre,
+    value: tipo.id
+  }));
+
   const resetForm = () => {
     setFormData({
-      nombre: "",
       direccion: "",
       precio: 0,
       estado: "disponible",
+      descripcion: "",
+      tamaño: 0,
+      tipo_id: null
     });
     setEditingProperty(null);
+  };
+
+  const openNew = () => {
+    resetForm();
+    setVisible(true);
   };
 
   const openEdit = (property) => {
     setEditingProperty(property);
     setFormData({
-      nombre: property.nombre || "",
       direccion: property.direccion || "",
       precio: property.precio || 0,
       estado: property.estado || "disponible",
+      descripcion: property.descripcion || "",
+      tamaño: property.tamaño || 0,
+      tipo_id: property.tipo_id || null
     });
     setVisible(true);
   };
 
   const handleSubmit = async () => {
-    // Validaciones
-    if (!formData.nombre || !formData.direccion) {
+    // ✅ Validaciones correctas
+    if (!formData.direccion || !formData.precio || !formData.tipo_id) {
       toast.current.show({
         severity: "error",
         summary: "Error",
-        detail: "Nombre y dirección son obligatorios",
+        detail: "Dirección, precio y tipo son obligatorios",
       });
       return;
     }
@@ -96,7 +123,6 @@ export default function AgenteProperties() {
       disponible: { severity: "success", label: "Disponible" },
       alquilada: { severity: "warning", label: "Alquilada" },
       vendida: { severity: "info", label: "Vendida" },
-      cancelado: { severity: "danger", label: "Cancelado" },
     };
     const status = statusMap[rowData.estado] || statusMap.disponible;
     return <Tag severity={status.severity} value={status.label} />;
@@ -104,6 +130,10 @@ export default function AgenteProperties() {
 
   const priceTemplate = (rowData) => {
     return `$${(rowData.precio || 0).toLocaleString()}`;
+  };
+
+  const tipoTemplate = (rowData) => {
+    return rowData.TipoPropiedad?.nombre || 'N/A';
   };
 
   const actionTemplate = (rowData) => {
@@ -125,7 +155,7 @@ export default function AgenteProperties() {
             toast.current.show({
               severity: "info",
               summary: "Detalles",
-              detail: `Propiedad: ${rowData.nombre}`,
+              detail: `Propiedad: ${rowData.direccion}`,
             });
           }}
         />
@@ -148,10 +178,7 @@ export default function AgenteProperties() {
         label="Nueva Propiedad"
         icon="pi pi-plus"
         className="btn-premium"
-        onClick={() => {
-          resetForm();
-          setVisible(true);
-        }}
+        onClick={openNew}
       />
     </div>
   );
@@ -227,37 +254,12 @@ export default function AgenteProperties() {
           stripedRows
           className="p-datatable-sm"
         >
-          <Column
-            field="nombre"
-            header="Nombre"
-            sortable
-            style={{ minWidth: "200px" }}
-          />
-          <Column
-            field="direccion"
-            header="Dirección"
-            sortable
-            style={{ minWidth: "200px" }}
-          />
-          <Column
-            field="precio"
-            header="Precio"
-            body={priceTemplate}
-            sortable
-            style={{ minWidth: "120px" }}
-          />
-          <Column
-            field="estado"
-            header="Estado"
-            body={statusTemplate}
-            sortable
-            style={{ minWidth: "120px" }}
-          />
-          <Column
-            header="Acciones"
-            body={actionTemplate}
-            style={{ minWidth: "120px", textAlign: "center" }}
-          />
+          <Column field="direccion" header="Dirección" sortable style={{ minWidth: "200px" }} />
+          <Column field="TipoPropiedad.nombre" header="Tipo" body={tipoTemplate} sortable style={{ minWidth: "120px" }} />
+          <Column field="precio" header="Precio" body={priceTemplate} sortable style={{ minWidth: "120px" }} />
+          <Column field="tamaño" header="Tamaño (m²)" sortable style={{ minWidth: "100px" }} />
+          <Column field="estado" header="Estado" body={statusTemplate} sortable style={{ minWidth: "120px" }} />
+          <Column header="Acciones" body={actionTemplate} style={{ minWidth: "120px", textAlign: "center" }} />
         </DataTable>
       </Card>
 
@@ -270,7 +272,7 @@ export default function AgenteProperties() {
             {editingProperty ? "Editar Propiedad" : "Nueva Propiedad"}
           </span>
         }
-        style={{ width: "600px" }}
+        style={{ width: "650px" }}
         onHide={() => {
           setVisible(false);
           resetForm();
@@ -279,25 +281,7 @@ export default function AgenteProperties() {
       >
         <div className="d-flex flex-column gap-3 py-3">
           <div>
-            <label className="form-label fw-semibold">
-              <i className="pi pi-home me-2"></i>
-              Nombre de la Propiedad *
-            </label>
-            <InputText
-              placeholder="Ej: Casa Moderna en Barrio Norte"
-              value={formData.nombre}
-              onChange={(e) =>
-                setFormData({ ...formData, nombre: e.target.value })
-              }
-              className="w-100"
-            />
-          </div>
-
-          <div>
-            <label className="form-label fw-semibold">
-              <i className="pi pi-map-marker me-2"></i>
-              Dirección *
-            </label>
+            <label className="form-label fw-semibold">Dirección *</label>
             <InputText
               placeholder="Ej: Av. Libertador 1234"
               value={formData.direccion}
@@ -309,32 +293,67 @@ export default function AgenteProperties() {
           </div>
 
           <div>
-            <label className="form-label fw-semibold">
-              <i className="pi pi-dollar me-2"></i>
-              Precio
-            </label>
-            <InputNumber
-              value={formData.precio}
-              onValueChange={(e) =>
-                setFormData({ ...formData, precio: e.value })
+            <label className="form-label fw-semibold">Tipo de Propiedad *</label>
+            <Dropdown
+              value={formData.tipo_id}
+              options={tipoOptions}
+              onChange={(e) =>
+                setFormData({ ...formData, tipo_id: e.value })
               }
-              mode="currency"
-              currency="USD"
-              locale="en-US"
+              placeholder="Seleccione un tipo"
+              className="w-100"
+            />
+          </div>
+
+          <div className="row">
+            <div className="col-md-6">
+              <label className="form-label fw-semibold">Precio *</label>
+              <InputNumber
+                value={formData.precio}
+                onValueChange={(e) =>
+                  setFormData({ ...formData, precio: e.value })
+                }
+                mode="currency"
+                currency="USD"
+                locale="en-US"
+                className="w-100"
+              />
+            </div>
+            <div className="col-md-6">
+              <label className="form-label fw-semibold">Tamaño (m²)</label>
+              <InputNumber
+                value={formData.tamaño}
+                onValueChange={(e) =>
+                  setFormData({ ...formData, tamaño: e.value })
+                }
+                suffix=" m²"
+                className="w-100"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="form-label fw-semibold">Estado</label>
+            <Dropdown
+              value={formData.estado}
+              options={estadoOptions}
+              onChange={(e) =>
+                setFormData({ ...formData, estado: e.value })
+              }
+              placeholder="Seleccione un estado"
               className="w-100"
             />
           </div>
 
           <div>
-            <label className="form-label fw-semibold">
-              <i className="pi pi-info-circle me-2"></i>
-              Estado
-            </label>
-            <Dropdown
-              value={formData.estado}
-              options={estadoOptions}
-              onChange={(e) => setFormData({ ...formData, estado: e.value })}
-              placeholder="Seleccione un estado"
+            <label className="form-label fw-semibold">Descripción</label>
+            <InputTextarea
+              placeholder="Descripción detallada de la propiedad"
+              value={formData.descripcion}
+              onChange={(e) =>
+                setFormData({ ...formData, descripcion: e.target.value })
+              }
+              rows={4}
               className="w-100"
             />
           </div>

@@ -43,10 +43,10 @@ export default function ClienteLayout() {
     <div className="d-flex align-items-center gap-3">
       <span className="text-muted">
         <i className="pi pi-user me-2"></i>
-        {user?.name}
+        {user?.nombre} 
       </span>
       <Avatar
-        label={user?.name?.charAt(0).toUpperCase()}
+        label={user?.nombre?.charAt(0).toUpperCase()}
         shape="circle"
         style={{ background: "var(--forest-green)", color: "white" }}
       />

@@ -1,43 +1,67 @@
 import api from "../api/client";
 
-const endpoint = "/usuarios";
+const endpoint = "/api/usuarios";
 
 function unwrap(res) {
   return res.data?.data ?? res.data;
 }
 
-const getAll = async (token) => {
-  const res = await api.get(endpoint, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+// ✅ CORREGIDO: Ya NO se pasa el token manualmente
+// El interceptor en client.js lo agrega automáticamente
+
+// Obtener todos los usuarios ACTIVOS
+const getAll = async () => {
+  const res = await api.get(endpoint);
   return unwrap(res);
 };
 
-const getById = async (id, token) => {
-  const res = await api.get(`${endpoint}/${id}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+// Obtener usuario por ID
+const getById = async (id) => {
+  const res = await api.get(`${endpoint}/${id}`);
   return unwrap(res);
 };
 
-const create = async (payload, token) => {
-  const res = await api.post(endpoint, payload, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+// Crear usuario
+const create = async (payload) => {
+  const res = await api.post(endpoint, payload);
   return unwrap(res);
 };
 
-const update = async (id, payload, token) => {
-  const res = await api.put(`${endpoint}/${id}`, payload, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+// Actualizar usuario
+const update = async (id, payload) => {
+  const res = await api.put(`${endpoint}/${id}`, payload);
   return unwrap(res);
 };
 
-const remove = async (id, token) => {
-  await api.delete(`${endpoint}/${id}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+// Eliminación LÓGICA (cambiar activo a false)
+const remove = async (id) => {
+  await api.delete(`${endpoint}/${id}`);
 };
 
-export default { getAll, getById, create, update, remove };
+// Obtener usuarios INACTIVOS (solo admin)
+const getInactive = async () => {
+  const res = await api.get(`${endpoint}/inactivos`);
+  return unwrap(res);
+};
+
+// Restaurar usuario (cambiar activo a true)
+const restore = async (id) => {
+  const res = await api.patch(`${endpoint}/${id}/restaurar`, {});
+  return unwrap(res);
+};
+
+// Eliminación FÍSICA/PERMANENTE (solo admin)
+const removePermanently = async (id) => {
+  await api.delete(`${endpoint}/${id}/permanente`);
+};
+
+export default { 
+  getAll, 
+  getById, 
+  create, 
+  update, 
+  remove,
+  getInactive,
+  restore,
+  removePermanently
+};
