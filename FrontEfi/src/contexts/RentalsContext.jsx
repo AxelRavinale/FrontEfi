@@ -7,23 +7,23 @@ const RentalsContext = createContext();
 export function RentalsProvider({ children }) {
   const { user } = useAuth();
   const [rentals, setRentals] = useState([]);
+  const [pendientes, setPendientes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // ✅ CORREGIDO: Removido AbortController que causaba conflictos
   useEffect(() => {
     if (user?.id) {
       loadRentals();
     }
-  }, [user?.id, user?.rol]);
+  }, [user?.id, user?.rol, user?.clienteId]);
 
   async function loadRentals() {
     if (!user) return;
 
     if (user.rol === 'admin' || user.rol === 'agente') {
       await fetchAllRentals();
-    } else if (user.rol === 'cliente') {
-      await fetchMyRentals(user.id);
+    } else if (user.rol === 'cliente' && user.clienteId) {
+      await fetchMyRentals(user.clienteId);
     }
   }
 
@@ -42,11 +42,58 @@ export function RentalsProvider({ children }) {
     }
   }
 
-  async function fetchMyRentals(userId) {
+  // Obtener solicitudes pendientes
+  async function fetchPendientes() {
     setLoading(true);
     setError(null);
     try {
-      const data = await rentalsService.getByClient(userId);
+      const data = await rentalsService.getPendientes();
+      setPendientes(data);
+      return data;
+    } catch (err) {
+      console.error('Error al cargar solicitudes pendientes:', err);
+      setError(err.response?.data?.message || err.message);
+      setPendientes([]);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Aprobar solicitud
+  async function aprobarSolicitud(id) {
+    try {
+      const approved = await rentalsService.aprobar(id);
+      // Actualizar listas
+      await fetchPendientes();
+      await fetchAllRentals();
+      return approved;
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || err.message;
+      setError(errorMsg);
+      throw new Error(errorMsg);
+    }
+  }
+
+  // Rechazar solicitud
+  async function rechazarSolicitud(id) {
+    try {
+      await rentalsService.rechazar(id);
+      // Actualizar lista de pendientes
+      await fetchPendientes();
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || err.message;
+      setError(errorMsg);
+      throw new Error(errorMsg);
+    }
+  }
+
+  async function fetchMyRentals(clientId) {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await rentalsService.getByClient(clientId);
+      console.log('📋 Mis alquileres cargados:', data);
       setRentals(data);
     } catch (err) {
       console.error('Error al cargar mis alquileres:', err);
@@ -59,7 +106,14 @@ export function RentalsProvider({ children }) {
 
   async function createRental(payload) {
     try {
-      const newRental = await rentalsService.create(payload);
+      const rentalData = {
+        ...payload,
+        id_cliente: user?.clienteId,
+      };
+      
+      console.log('🏠 Creando solicitud de alquiler:', rentalData);
+      
+      const newRental = await rentalsService.create(rentalData);
       await loadRentals();
       return newRental;
     } catch (err) {
@@ -103,18 +157,35 @@ export function RentalsProvider({ children }) {
     }
   }
 
+  // ✅ NUEVO: Descargar contrato de alquiler
+  async function downloadContrato(id) {
+    try {
+      await rentalsService.downloadContrato(id);
+      return true;
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || err.message;
+      setError(errorMsg);
+      throw new Error(errorMsg);
+    }
+  }
+
   return (
     <RentalsContext.Provider
       value={{
         rentals,
+        pendientes,
         loading,
         error,
         fetchAllRentals,
+        fetchPendientes,
+        aprobarSolicitud,
+        rechazarSolicitud,
         fetchMyRentals,
         createRental,
         updateRental,
         cancelRental,
         deleteRentalPermanently,
+        downloadContrato,
       }}
     >
       {children}

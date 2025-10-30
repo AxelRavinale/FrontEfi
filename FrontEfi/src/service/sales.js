@@ -12,13 +12,31 @@ const getAll = async () => {
   return unwrap(res);
 };
 
+// Obtener solicitudes pendientes (admin y agente)
+const getPendientes = async () => {
+  const res = await api.get(`${endpoint}/pendientes`);
+  return unwrap(res);
+};
+
+// Aprobar solicitud (admin y agente)
+const aprobar = async (id) => {
+  const res = await api.post(`${endpoint}/${id}/aprobar`);
+  return unwrap(res);
+};
+
+// Rechazar solicitud (admin y agente)
+const rechazar = async (id) => {
+  const res = await api.post(`${endpoint}/${id}/rechazar`);
+  return unwrap(res);
+};
+
 // Obtener ventas por cliente
 const getByClient = async (clientId) => {
   const res = await api.get(`${endpoint}/cliente/${clientId}`);
   return unwrap(res);
 };
 
-// Crear nueva venta
+// Crear nueva venta (ahora crea como solicitud pendiente)
 const create = async (payload) => {
   const res = await api.post(endpoint, payload);
   return unwrap(res);
@@ -36,16 +54,46 @@ const cancel = async (id) => {
   return unwrap(res);
 };
 
-// ⚠️ Eliminación FÍSICA (solo admin) - si la implementas en el backend
+// Eliminación FÍSICA (solo admin)
 const removePermanently = async (id) => {
   await api.delete(`${endpoint}/${id}/permanente`);
 };
 
+// ✅ NUEVO: Descargar recibo de venta en PDF
+const downloadRecibo = async (id) => {
+  try {
+    const res = await api.get(`/api/pdf/venta/${id}`, {
+      responseType: 'blob', // Importante para archivos binarios
+    });
+    
+    // Crear un link temporal para descargar el archivo
+    const url = window.URL.createObjectURL(new Blob([res.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `recibo-venta-${id}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    
+    // Limpiar
+    link.parentNode.removeChild(link);
+    window.URL.revokeObjectURL(url);
+    
+    return true;
+  } catch (error) {
+    console.error('Error al descargar recibo:', error);
+    throw error;
+  }
+};
+
 export default { 
-  getAll, 
+  getAll,
+  getPendientes,
+  aprobar,
+  rechazar,
   getByClient, 
   create, 
   update, 
   cancel,
-  removePermanently 
+  removePermanently,
+  downloadRecibo
 };

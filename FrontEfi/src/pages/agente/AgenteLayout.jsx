@@ -12,6 +12,7 @@ import AgenteProperties from "./AgenteProperties";
 import AgenteClients from "./AgenteClients";
 import AgenteRentals from "./AgenteRentals";
 import AgenteSales from "./AgenteSales";
+import AgenteSolicitudes from "./AgenteSolicitudes";
 
 export default function AgenteLayout() {
   const { user, logout } = useAuth();
@@ -32,6 +33,16 @@ export default function AgenteLayout() {
       label: "Clientes",
       icon: "pi pi-users",
       command: () => navigate("/agente/clients"),
+    },
+    {
+      label: "Solicitudes",
+      icon: "pi pi-inbox",
+      command: () => navigate("/agente/solicitudes"),
+      style: { 
+        background: "linear-gradient(135deg, rgba(139, 111, 63, 0.1), rgba(45, 80, 22, 0.1))",
+        fontWeight: "600",
+        color: "var(--primary-brown)"
+      }
     },
     {
       label: "Alquileres",
@@ -79,6 +90,7 @@ export default function AgenteLayout() {
           <Route path="/dashboard" element={<AgenteDashboard />} />
           <Route path="/properties" element={<AgenteProperties />} />
           <Route path="/clients" element={<AgenteClients />} />
+          <Route path="/solicitudes" element={<AgenteSolicitudes />} />
           <Route path="/rentals" element={<AgenteRentals />} />
           <Route path="/sales" element={<AgenteSales />} />
         </Routes>

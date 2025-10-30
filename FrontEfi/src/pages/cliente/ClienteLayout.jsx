@@ -11,6 +11,7 @@ import ClienteDashboard from "./ClienteDashboard";
 import ClientePropiedades from "./ClientePropiedades";
 import ClienteMisAlquileres from "./ClienteMisAlquileres";
 import ClienteMisCompras from "./ClienteMisCompras";
+import ClienteMisSolicitudes from "./ClienteMisSolicitudes";
 
 export default function ClienteLayout() {
   const { user, logout } = useAuth();
@@ -26,6 +27,16 @@ export default function ClienteLayout() {
       label: "Propiedades",
       icon: "pi pi-building",
       command: () => navigate("/cliente/propiedades"),
+    },
+    {
+      label: "Mis Solicitudes",
+      icon: "pi pi-send",
+      command: () => navigate("/cliente/solicitudes"),
+      style: { 
+        background: "linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(135, 169, 107, 0.1))",
+        fontWeight: "600",
+        color: "var(--primary-brown)"
+      }
     },
     {
       label: "Mis Alquileres",
@@ -72,6 +83,7 @@ export default function ClienteLayout() {
           <Route path="/" element={<ClienteDashboard />} />
           <Route path="/dashboard" element={<ClienteDashboard />} />
           <Route path="/propiedades" element={<ClientePropiedades />} />
+          <Route path="/solicitudes" element={<ClienteMisSolicitudes />} />
           <Route path="/alquileres" element={<ClienteMisAlquileres />} />
           <Route path="/compras" element={<ClienteMisCompras />} />
         </Routes>

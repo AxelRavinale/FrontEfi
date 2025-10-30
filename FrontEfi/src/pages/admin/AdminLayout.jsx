@@ -13,6 +13,7 @@ import AdminClients from "./AdminClients";
 import AdminUsers from "./AdminUsers";
 import AdminRentals from "./AdminRentals";
 import AdminSales from "./AdminSales";
+import AdminSolicitudes from "./AdminSolicitudes";
 
 export default function AdminLayout() {
   const { user, logout } = useAuth();
@@ -40,6 +41,16 @@ export default function AdminLayout() {
       command: () => navigate("/admin/users"),
     },
     {
+      label: "Solicitudes",
+      icon: "pi pi-inbox",
+      command: () => navigate("/admin/solicitudes"),
+      style: { 
+        background: "linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(139, 111, 63, 0.1))",
+        fontWeight: "600",
+        color: "var(--primary-brown)"
+      }
+    },
+    {
       label: "Alquileres",
       icon: "pi pi-key",
       command: () => navigate("/admin/rentals"),
@@ -55,7 +66,7 @@ export default function AdminLayout() {
     <div className="d-flex align-items-center gap-3">
       <span className="text-muted">
         <i className="pi pi-user me-2"></i>
-        {user?.nombre} {/* ✅ CORREGIDO: nombre en lugar de name */}
+        {user?.nombre}
       </span>
       <Avatar
         label={user?.nombre?.charAt(0).toUpperCase()} 
@@ -85,6 +96,7 @@ export default function AdminLayout() {
           <Route path="/properties" element={<AdminProperties />} />
           <Route path="/clients" element={<AdminClients />} />
           <Route path="/users" element={<AdminUsers />} />
+          <Route path="/solicitudes" element={<AdminSolicitudes />} />
           <Route path="/rentals" element={<AdminRentals />} />
           <Route path="/sales" element={<AdminSales />} />
         </Routes>

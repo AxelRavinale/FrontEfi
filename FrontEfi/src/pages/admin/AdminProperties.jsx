@@ -6,6 +6,8 @@ import { Dialog } from "primereact/dialog";
 import { InputText } from "primereact/inputtext";
 import { InputNumber } from "primereact/inputnumber";
 import { Dropdown } from "primereact/dropdown";
+import { MultiSelect } from "primereact/multiselect";
+import { Calendar } from "primereact/calendar";
 import { InputTextarea } from "primereact/inputtextarea";
 import { Toast } from "primereact/toast";
 import { confirmDialog } from "primereact/confirmdialog";
@@ -13,6 +15,7 @@ import { Card } from "primereact/card";
 import { Tag } from "primereact/tag";
 import { TabView, TabPanel } from "primereact/tabview";
 import { useProperties } from "../../contexts/PropertiesContext";
+import { useUsers } from "../../contexts/UsersContext";
 import { useAuth } from "../../contexts/AuthContext";
 
 export default function AdminProperties() {
@@ -28,10 +31,12 @@ export default function AdminProperties() {
     loading 
   } = useProperties();
   
+  const { users } = useUsers();
   const { user } = useAuth();
+  
   const [visible, setVisible] = useState(false);
   const [editingProperty, setEditingProperty] = useState(null);
-  const [activeTab, setActiveTab] = useState(0); // 0: Activas, 1: Inactivas
+  const [activeTab, setActiveTab] = useState(0);
   const [inactiveProperties, setInactiveProperties] = useState([]);
   
   const [formData, setFormData] = useState({
@@ -44,6 +49,20 @@ export default function AdminProperties() {
   });
   
   const [globalFilter, setGlobalFilter] = useState("");
+  
+  // ✅ FILTROS AVANZADOS
+  const [filters, setFilters] = useState({
+    estados: [],
+    tipos: [],
+    agentes: [],
+    precioMin: null,
+    precioMax: null,
+    tamañoMin: null,
+    tamañoMax: null,
+    fechaDesde: null,
+    fechaHasta: null,
+  });
+  
   const toast = useRef(null);
 
   const estadoOptions = [
@@ -52,11 +71,77 @@ export default function AdminProperties() {
     { label: "Vendida", value: "vendida" },
   ];
 
-  // Convertir tipos de propiedad al formato de Dropdown
   const tipoOptions = tiposPropiedad.map(tipo => ({
     label: tipo.nombre,
     value: tipo.id
   }));
+
+  // ✅ Opciones de agentes (solo admin y agentes)
+  const agenteOptions = users
+    .filter(u => u.rol === 'admin' || u.rol === 'agente')
+    .map(u => ({
+      label: u.nombre,
+      value: u.id
+    }));
+
+  // ✅ FUNCIÓN DE FILTRADO
+  const getFilteredProperties = (propertiesList) => {
+    let filtered = propertiesList;
+
+    // Filtro de búsqueda global
+    if (globalFilter) {
+      filtered = filtered.filter(p => 
+        p.direccion.toLowerCase().includes(globalFilter.toLowerCase()) ||
+        p.TipoPropiedad?.nombre.toLowerCase().includes(globalFilter.toLowerCase())
+      );
+    }
+
+    // Filtro por estados
+    if (filters.estados.length > 0) {
+      filtered = filtered.filter(p => filters.estados.includes(p.estado));
+    }
+
+    // Filtro por tipos
+    if (filters.tipos.length > 0) {
+      filtered = filtered.filter(p => filters.tipos.includes(p.tipo_id));
+    }
+
+    // Filtro por agentes
+    if (filters.agentes.length > 0) {
+      filtered = filtered.filter(p => filters.agentes.includes(p.id_agente));
+    }
+
+    // Filtro por precio
+    if (filters.precioMin !== null) {
+      filtered = filtered.filter(p => parseFloat(p.precio) >= filters.precioMin);
+    }
+    if (filters.precioMax !== null) {
+      filtered = filtered.filter(p => parseFloat(p.precio) <= filters.precioMax);
+    }
+
+    // Filtro por tamaño
+    if (filters.tamañoMin !== null) {
+      filtered = filtered.filter(p => parseFloat(p.tamaño) >= filters.tamañoMin);
+    }
+    if (filters.tamañoMax !== null) {
+      filtered = filtered.filter(p => parseFloat(p.tamaño) <= filters.tamañoMax);
+    }
+
+    // Filtro por fecha de creación
+    if (filters.fechaDesde) {
+      filtered = filtered.filter(p => new Date(p.createdAt) >= filters.fechaDesde);
+    }
+    if (filters.fechaHasta) {
+      const fechaHastaEnd = new Date(filters.fechaHasta);
+      fechaHastaEnd.setHours(23, 59, 59, 999);
+      filtered = filtered.filter(p => new Date(p.createdAt) <= fechaHastaEnd);
+    }
+
+    return filtered;
+  };
+
+  const filteredActiveProperties = getFilteredProperties(properties);
+  const filteredInactiveProperties = getFilteredProperties(inactiveProperties);
 
   // Cargar propiedades inactivas cuando cambiamos a la pestaña
   const handleTabChange = async (e) => {
@@ -85,6 +170,21 @@ export default function AdminProperties() {
       tipo_id: null
     });
     setEditingProperty(null);
+  };
+
+  const resetFilters = () => {
+    setFilters({
+      estados: [],
+      tipos: [],
+      agentes: [],
+      precioMin: null,
+      precioMax: null,
+      tamañoMin: null,
+      tamañoMax: null,
+      fechaDesde: null,
+      fechaHasta: null,
+    });
+    setGlobalFilter("");
   };
 
   const openNew = () => {
@@ -198,7 +298,6 @@ export default function AdminProperties() {
             detail: "Propiedad eliminada permanentemente",
             life: 5000,
           });
-          // Recargar propiedades inactivas
           const inactive = await getInactiveProperties();
           setInactiveProperties(inactive);
         } catch (error) {
@@ -220,7 +319,6 @@ export default function AdminProperties() {
         summary: "Restaurada",
         detail: "Propiedad restaurada exitosamente",
       });
-      // Recargar propiedades inactivas
       const inactive = await getInactiveProperties();
       setInactiveProperties(inactive);
     } catch (error) {
@@ -253,6 +351,10 @@ export default function AdminProperties() {
 
   const agenteTemplate = (rowData) => {
     return rowData.Usuario?.nombre || 'N/A';
+  };
+
+  const fechaTemplate = (rowData) => {
+    return new Date(rowData.createdAt).toLocaleDateString('es-AR');
   };
 
   const actionTemplateActive = (rowData) => {
@@ -309,22 +411,135 @@ export default function AdminProperties() {
   };
 
   const header = (
-    <div className="d-flex justify-content-between align-items-center">
-      <span className="p-input-icon-left w-50">
-        <i className="pi pi-search" />
-        <InputText
-          placeholder="Buscar propiedades..."
-          value={globalFilter}
-          onChange={(e) => setGlobalFilter(e.target.value)}
-          className="w-100"
-        />
-      </span>
-      <Button
-        label="Nueva Propiedad"
-        icon="pi pi-plus"
-        className="btn-premium"
-        onClick={openNew}
-      />
+    <div className="d-flex flex-column gap-3">
+      <div className="d-flex justify-content-between align-items-center">
+        <span className="p-input-icon-left" style={{ width: "400px" }}>
+          <i className="pi pi-search" />
+          <InputText
+            placeholder="Buscar por dirección o tipo..."
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+            className="w-100"
+          />
+        </span>
+        <div className="d-flex gap-2">
+          <Button
+            label="Limpiar Filtros"
+            icon="pi pi-filter-slash"
+            className="p-button-outlined"
+            onClick={resetFilters}
+          />
+          <Button
+            label="Nueva Propiedad"
+            icon="pi pi-plus"
+            className="btn-premium"
+            onClick={openNew}
+          />
+        </div>
+      </div>
+
+      {/* ✅ PANEL DE FILTROS AVANZADOS */}
+      <Card className="p-3" style={{ background: "rgba(135, 169, 107, 0.05)" }}>
+        <div className="row g-3">
+          <div className="col-md-3">
+            <label className="form-label fw-semibold" style={{ fontSize: "0.85rem" }}>Estados</label>
+            <MultiSelect
+              value={filters.estados}
+              options={estadoOptions}
+              onChange={(e) => setFilters({ ...filters, estados: e.value })}
+              placeholder="Todos"
+              className="w-100"
+              display="chip"
+            />
+          </div>
+          <div className="col-md-3">
+            <label className="form-label fw-semibold" style={{ fontSize: "0.85rem" }}>Tipos</label>
+            <MultiSelect
+              value={filters.tipos}
+              options={tipoOptions}
+              onChange={(e) => setFilters({ ...filters, tipos: e.value })}
+              placeholder="Todos"
+              className="w-100"
+              display="chip"
+            />
+          </div>
+          <div className="col-md-3">
+            <label className="form-label fw-semibold" style={{ fontSize: "0.85rem" }}>Agente</label>
+            <MultiSelect
+              value={filters.agentes}
+              options={agenteOptions}
+              onChange={(e) => setFilters({ ...filters, agentes: e.value })}
+              placeholder="Todos"
+              className="w-100"
+              display="chip"
+            />
+          </div>
+          <div className="col-md-3">
+            <label className="form-label fw-semibold" style={{ fontSize: "0.85rem" }}>Precio (Min-Max)</label>
+            <div className="d-flex gap-2">
+              <InputNumber
+                value={filters.precioMin}
+                onValueChange={(e) => setFilters({ ...filters, precioMin: e.value })}
+                placeholder="Min"
+                mode="currency"
+                currency="USD"
+                locale="en-US"
+                className="w-100"
+              />
+              <InputNumber
+                value={filters.precioMax}
+                onValueChange={(e) => setFilters({ ...filters, precioMax: e.value })}
+                placeholder="Max"
+                mode="currency"
+                currency="USD"
+                locale="en-US"
+                className="w-100"
+              />
+            </div>
+          </div>
+          <div className="col-md-3">
+            <label className="form-label fw-semibold" style={{ fontSize: "0.85rem" }}>Tamaño m² (Min-Max)</label>
+            <div className="d-flex gap-2">
+              <InputNumber
+                value={filters.tamañoMin}
+                onValueChange={(e) => setFilters({ ...filters, tamañoMin: e.value })}
+                placeholder="Min"
+                suffix=" m²"
+                className="w-100"
+              />
+              <InputNumber
+                value={filters.tamañoMax}
+                onValueChange={(e) => setFilters({ ...filters, tamañoMax: e.value })}
+                placeholder="Max"
+                suffix=" m²"
+                className="w-100"
+              />
+            </div>
+          </div>
+          <div className="col-md-3">
+            <label className="form-label fw-semibold" style={{ fontSize: "0.85rem" }}>Fecha Creación (Desde)</label>
+            <Calendar
+              value={filters.fechaDesde}
+              onChange={(e) => setFilters({ ...filters, fechaDesde: e.value })}
+              placeholder="Desde"
+              dateFormat="dd/mm/yy"
+              showIcon
+              className="w-100"
+            />
+          </div>
+          <div className="col-md-3">
+            <label className="form-label fw-semibold" style={{ fontSize: "0.85rem" }}>Fecha Creación (Hasta)</label>
+            <Calendar
+              value={filters.fechaHasta}
+              onChange={(e) => setFilters({ ...filters, fechaHasta: e.value })}
+              placeholder="Hasta"
+              dateFormat="dd/mm/yy"
+              showIcon
+              className="w-100"
+            />
+          </div>
+        </div>
+      </Card>
     </div>
   );
 
@@ -344,28 +559,28 @@ export default function AdminProperties() {
         <div className="col-md-3">
           <Card className="premium-card text-center">
             <i className="pi pi-building mb-2" style={{ fontSize: "2rem", color: "var(--sage-green)" }}></i>
-            <h4>{properties.length}</h4>
-            <small className="text-muted">Total Propiedades</small>
+            <h4>{activeTab === 0 ? filteredActiveProperties.length : filteredInactiveProperties.length}</h4>
+            <small className="text-muted">{activeTab === 0 ? 'Propiedades Filtradas' : 'Inactivas Filtradas'}</small>
           </Card>
         </div>
         <div className="col-md-3">
           <Card className="premium-card text-center">
             <i className="pi pi-check-circle mb-2" style={{ fontSize: "2rem", color: "var(--gold)" }}></i>
-            <h4>{properties.filter((p) => p.estado === "disponible").length}</h4>
+            <h4>{(activeTab === 0 ? filteredActiveProperties : filteredInactiveProperties).filter((p) => p.estado === "disponible").length}</h4>
             <small className="text-muted">Disponibles</small>
           </Card>
         </div>
         <div className="col-md-3">
           <Card className="premium-card text-center">
             <i className="pi pi-key mb-2" style={{ fontSize: "2rem", color: "var(--light-brown)" }}></i>
-            <h4>{properties.filter((p) => p.estado === "alquilada").length}</h4>
+            <h4>{(activeTab === 0 ? filteredActiveProperties : filteredInactiveProperties).filter((p) => p.estado === "alquilada").length}</h4>
             <small className="text-muted">Alquiladas</small>
           </Card>
         </div>
         <div className="col-md-3">
           <Card className="premium-card text-center">
             <i className="pi pi-dollar mb-2" style={{ fontSize: "2rem", color: "var(--forest-green)" }}></i>
-            <h4>{properties.filter((p) => p.estado === "vendida").length}</h4>
+            <h4>{(activeTab === 0 ? filteredActiveProperties : filteredInactiveProperties).filter((p) => p.estado === "vendida").length}</h4>
             <small className="text-muted">Vendidas</small>
           </Card>
         </div>
@@ -376,14 +591,13 @@ export default function AdminProperties() {
           {/* TAB: Propiedades Activas */}
           <TabPanel header="Propiedades Activas" leftIcon="pi pi-building mr-2">
             <DataTable
-              value={properties}
+              value={filteredActiveProperties}
               paginator
               rows={10}
               rowsPerPageOptions={[5, 10, 25, 50]}
               responsiveLayout="scroll"
-              emptyMessage="No hay propiedades activas"
+              emptyMessage="No se encontraron propiedades activas con los filtros aplicados"
               header={header}
-              globalFilter={globalFilter}
               loading={loading}
               stripedRows
               className="p-datatable-sm"
@@ -394,6 +608,7 @@ export default function AdminProperties() {
               <Column field="tamaño" header="Tamaño (m²)" sortable style={{ minWidth: "100px" }} />
               <Column field="estado" header="Estado" body={statusTemplate} sortable style={{ minWidth: "120px" }} />
               <Column field="Usuario.nombre" header="Agente" body={agenteTemplate} sortable style={{ minWidth: "150px" }} />
+              <Column field="createdAt" header="Fecha Creación" body={fechaTemplate} sortable style={{ minWidth: "120px" }} />
               <Column header="Acciones" body={actionTemplateActive} style={{ minWidth: "180px", textAlign: "center" }} />
             </DataTable>
           </TabPanel>
@@ -402,13 +617,13 @@ export default function AdminProperties() {
           {user?.rol === 'admin' && (
             <TabPanel header="Propiedades Inactivas" leftIcon="pi pi-ban mr-2">
               <DataTable
-                value={inactiveProperties}
+                value={filteredInactiveProperties}
                 paginator
                 rows={10}
                 rowsPerPageOptions={[5, 10, 25, 50]}
                 responsiveLayout="scroll"
-                emptyMessage="No hay propiedades inactivas"
-                globalFilter={globalFilter}
+                emptyMessage="No se encontraron propiedades inactivas con los filtros aplicados"
+                header={header}
                 loading={loading}
                 stripedRows
                 className="p-datatable-sm"
@@ -419,6 +634,7 @@ export default function AdminProperties() {
                 <Column field="tamaño" header="Tamaño (m²)" sortable style={{ minWidth: "100px" }} />
                 <Column field="estado" header="Estado" body={statusTemplate} sortable style={{ minWidth: "120px" }} />
                 <Column field="Usuario.nombre" header="Agente" body={agenteTemplate} sortable style={{ minWidth: "150px" }} />
+                <Column field="createdAt" header="Fecha Creación" body={fechaTemplate} sortable style={{ minWidth: "120px" }} />
                 <Column header="Acciones" body={actionTemplateInactive} style={{ minWidth: "150px", textAlign: "center" }} />
               </DataTable>
             </TabPanel>
@@ -431,6 +647,7 @@ export default function AdminProperties() {
         visible={visible}
         header={
           <span style={{ color: "var(--primary-brown)", fontWeight: "600" }}>
+            <i className="pi pi-building me-2"></i>
             {editingProperty ? "Editar Propiedad" : "Nueva Propiedad"}
           </span>
         }

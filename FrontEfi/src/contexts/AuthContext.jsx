@@ -28,7 +28,9 @@ const AuthProvider = ({ children }) => {
           
           if (isMounted) {
             setToken(savedToken);
-            setUser(res.user);
+            setUser(res.user); // ✅ Incluye clienteId si es cliente
+            // ✅ Actualizar también en localStorage
+            localStorage.setItem("user", JSON.stringify(res.user));
           }
         } catch (error) {
           console.error('❌ Sesión inválida:', error);
@@ -60,8 +62,10 @@ const AuthProvider = ({ children }) => {
       const res = await api.post("/api/auth/login", { email, password });
       const { token, user } = res.data;
 
+      console.log('👤 Usuario autenticado:', user); // ✅ Debug
+
       setToken(token);
-      setUser(user);
+      setUser(user); // ✅ Ahora incluye clienteId para clientes
 
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(user));
@@ -106,7 +110,7 @@ const AuthProvider = ({ children }) => {
   return (
     <AuthContext.Provider
       value={{
-        user,
+        user, // ✅ Ahora incluye clienteId para clientes
         token,
         login,
         register,

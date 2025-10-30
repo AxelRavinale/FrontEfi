@@ -36,18 +36,15 @@ export function PropertiesProvider({ children }) {
     try {
       const data = await propertiesService.getAll();
       
-      // ✅ CORREGIDO: Agentes solo ven SUS propiedades
-      let filteredData = data;
-      if (user?.rol === 'agente') {
-        filteredData = data.filter(prop => prop.id_agente === user.id);
-        console.log('🔍 Propiedades filtradas para agente:', {
-          total: data.length,
-          delAgente: filteredData.length,
-          agenteId: user.id
-        });
-      }
+      // ✅ CORREGIDO: Admin y Agente ven TODAS las propiedades
+      // Solo los clientes ven solo disponibles (esto se maneja en ClientePropiedades.jsx)
+      setProperties(data);
       
-      setProperties(filteredData);
+      console.log('📋 Propiedades cargadas:', {
+        total: data.length,
+        rol: user?.rol
+      });
+      
     } catch (err) {
       console.error('Error al cargar propiedades:', err);
       setError(err.response?.data?.message || err.message);
@@ -60,12 +57,6 @@ export function PropertiesProvider({ children }) {
   async function getPropertyById(id) {
     try {
       const property = await propertiesService.getById(id);
-      
-      // ✅ Validar que el agente solo acceda a sus propiedades
-      if (user?.rol === 'agente' && property.id_agente !== user.id) {
-        throw new Error('No tienes permiso para acceder a esta propiedad');
-      }
-      
       return property;
     } catch (err) {
       setError(err.response?.data?.message || err.message);
@@ -88,12 +79,6 @@ export function PropertiesProvider({ children }) {
 
   async function updateProperty(id, payload) {
     try {
-      // ✅ Validación adicional en frontend antes de enviar al backend
-      const propertyToUpdate = properties.find(p => p.id === id);
-      if (user?.rol === 'agente' && propertyToUpdate?.id_agente !== user.id) {
-        throw new Error('No tienes permiso para editar esta propiedad');
-      }
-      
       const updated = await propertiesService.update(id, payload);
       await fetchProperties();
       return updated;
@@ -107,12 +92,6 @@ export function PropertiesProvider({ children }) {
 
   async function deleteProperty(id) {
     try {
-      // ✅ Validación adicional en frontend
-      const propertyToDelete = properties.find(p => p.id === id);
-      if (user?.rol === 'agente' && propertyToDelete?.id_agente !== user.id) {
-        throw new Error('No tienes permiso para eliminar esta propiedad');
-      }
-      
       await propertiesService.remove(id);
       await fetchProperties();
     } catch (err) {
@@ -125,6 +104,10 @@ export function PropertiesProvider({ children }) {
 
   async function deletePropertyPermanente(id) {
     try {
+      // ✅ Solo admin puede eliminar permanentemente (validado en backend también)
+      if (user?.rol !== 'admin') {
+        throw new Error('Solo los administradores pueden eliminar permanentemente');
+      }
       await propertiesService.removePermanente(id);
       await fetchProperties();
     } catch (err) {

@@ -7,23 +7,23 @@ const SalesContext = createContext();
 export function SalesProvider({ children }) {
   const { user } = useAuth();
   const [sales, setSales] = useState([]);
+  const [pendientes, setPendientes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // ✅ CORREGIDO: Removido AbortController que causaba conflictos
   useEffect(() => {
     if (user?.id) {
       loadSales();
     }
-  }, [user?.id, user?.rol]);
+  }, [user?.id, user?.rol, user?.clienteId]);
 
   async function loadSales() {
     if (!user) return;
 
     if (user.rol === 'admin' || user.rol === 'agente') {
       await fetchAllSales();
-    } else if (user.rol === 'cliente') {
-      await fetchMySales(user.id);
+    } else if (user.rol === 'cliente' && user.clienteId) {
+      await fetchMySales(user.clienteId);
     }
   }
 
@@ -42,14 +42,61 @@ export function SalesProvider({ children }) {
     }
   }
 
-  async function fetchMySales(userId) {
+  // Obtener solicitudes pendientes
+  async function fetchPendientes() {
     setLoading(true);
     setError(null);
     try {
-      const data = await salesService.getByClient(userId);
+      const data = await salesService.getPendientes();
+      setPendientes(data);
+      return data;
+    } catch (err) {
+      console.error('Error al cargar solicitudes pendientes:', err);
+      setError(err.response?.data?.message || err.message);
+      setPendientes([]);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Aprobar solicitud
+  async function aprobarSolicitud(id) {
+    try {
+      const approved = await salesService.aprobar(id);
+      // Actualizar listas
+      await fetchPendientes();
+      await fetchAllSales();
+      return approved;
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || err.message;
+      setError(errorMsg);
+      throw new Error(errorMsg);
+    }
+  }
+
+  // Rechazar solicitud
+  async function rechazarSolicitud(id) {
+    try {
+      await salesService.rechazar(id);
+      // Actualizar lista de pendientes
+      await fetchPendientes();
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || err.message;
+      setError(errorMsg);
+      throw new Error(errorMsg);
+    }
+  }
+
+  async function fetchMySales(clientId) {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await salesService.getByClient(clientId);
+      console.log('🛒 Mis compras cargadas:', data);
       setSales(data);
     } catch (err) {
-      console.error('Error al cargar mis ventas:', err);
+      console.error('Error al cargar mis compras:', err);
       setError(err.response?.data?.message || err.message);
       setSales([]);
     } finally {
@@ -59,7 +106,14 @@ export function SalesProvider({ children }) {
 
   async function createSale(payload) {
     try {
-      const newSale = await salesService.create(payload);
+      const saleData = {
+        ...payload,
+        id_cliente: user?.clienteId,
+      };
+      
+      console.log('💰 Creando solicitud de venta:', saleData);
+      
+      const newSale = await salesService.create(saleData);
       await loadSales();
       return newSale;
     } catch (err) {
@@ -103,18 +157,35 @@ export function SalesProvider({ children }) {
     }
   }
 
+  // ✅ NUEVO: Descargar recibo de venta
+  async function downloadRecibo(id) {
+    try {
+      await salesService.downloadRecibo(id);
+      return true;
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || err.message;
+      setError(errorMsg);
+      throw new Error(errorMsg);
+    }
+  }
+
   return (
     <SalesContext.Provider
       value={{
         sales,
+        pendientes,
         loading,
         error,
         fetchAllSales,
+        fetchPendientes,
+        aprobarSolicitud,
+        rechazarSolicitud,
         fetchMySales,
         createSale,
         updateSale,
         cancelSale,
         deleteSalePermanently,
+        downloadRecibo,
       }}
     >
       {children}

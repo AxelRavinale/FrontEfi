@@ -5,25 +5,41 @@ import { Button } from "primereact/button";
 import { Dialog } from "primereact/dialog";
 import { InputText } from "primereact/inputtext";
 import { Dropdown } from "primereact/dropdown";
+import { MultiSelect } from "primereact/multiselect";
+import { InputNumber } from "primereact/inputnumber";
+import { Calendar } from "primereact/calendar";
 import { Toast } from "primereact/toast";
 import { confirmDialog } from "primereact/confirmdialog";
 import { Card } from "primereact/card";
 import { Tag } from "primereact/tag";
+import { Slider } from "primereact/slider";
 import { useProperties } from "../../contexts/PropertiesContext";
 import { useRentals } from "../../contexts/RentalsContext";
 import { useSales } from "../../contexts/SalesContext";
 import { useAuth } from "../../contexts/AuthContext";
 
 export default function ClientePropiedades() {
-  const { properties, loading } = useProperties();
+  const { properties, tiposPropiedad, loading } = useProperties();
   const { createRental } = useRentals();
   const { createSale } = useSales();
   const { user } = useAuth();
   const [visible, setVisible] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState(null);
   const [tipoOperacion, setTipoOperacion] = useState("");
+  const [fechaInicio, setFechaInicio] = useState(null);
+  const [fechaFin, setFechaFin] = useState(null);
   const [globalFilter, setGlobalFilter] = useState("");
-  const [viewMode, setViewMode] = useState("grid"); // 'grid' o 'table'
+  const [viewMode, setViewMode] = useState("grid");
+  
+  // ✅ FILTROS SIMPLES PARA CLIENTE
+  const [filters, setFilters] = useState({
+    tipos: [],
+    precioMin: null,
+    precioMax: null,
+    tamañoMin: null,
+    tamañoMax: null,
+  });
+  
   const toast = useRef(null);
 
   // Solo propiedades disponibles para clientes
@@ -31,18 +47,83 @@ export default function ClientePropiedades() {
     (p) => p.estado === "disponible"
   );
 
+  // ✅ FUNCIÓN DE FILTRADO
+  const getFilteredProperties = () => {
+    let filtered = propiedadesDisponibles;
+
+    // Filtro de búsqueda global
+    if (globalFilter) {
+      filtered = filtered.filter(p => 
+        p.direccion.toLowerCase().includes(globalFilter.toLowerCase()) ||
+        p.TipoPropiedad?.nombre.toLowerCase().includes(globalFilter.toLowerCase())
+      );
+    }
+
+    // Filtro por tipos
+    if (filters.tipos.length > 0) {
+      filtered = filtered.filter(p => filters.tipos.includes(p.tipo_id));
+    }
+
+    // Filtro por precio
+    if (filters.precioMin !== null) {
+      filtered = filtered.filter(p => parseFloat(p.precio) >= filters.precioMin);
+    }
+    if (filters.precioMax !== null) {
+      filtered = filtered.filter(p => parseFloat(p.precio) <= filters.precioMax);
+    }
+
+    // Filtro por tamaño
+    if (filters.tamañoMin !== null) {
+      filtered = filtered.filter(p => parseFloat(p.tamaño || 0) >= filters.tamañoMin);
+    }
+    if (filters.tamañoMax !== null) {
+      filtered = filtered.filter(p => parseFloat(p.tamaño || 0) <= filters.tamañoMax);
+    }
+
+    return filtered;
+  };
+
+  const filteredProperties = getFilteredProperties();
+
   const operacionOptions = [
     { label: "Alquilar", value: "alquiler" },
     { label: "Comprar", value: "compra" },
   ];
 
+  const tipoOptions = tiposPropiedad.map(tipo => ({
+    label: tipo.nombre,
+    value: tipo.id
+  }));
+
+  const resetFilters = () => {
+    setFilters({
+      tipos: [],
+      precioMin: null,
+      precioMax: null,
+      tamañoMin: null,
+      tamañoMax: null,
+    });
+    setGlobalFilter("");
+  };
+
   const openSolicitud = (property) => {
     setSelectedProperty(property);
     setTipoOperacion("");
+    setFechaInicio(null);
+    setFechaFin(null);
     setVisible(true);
   };
 
   const handleSolicitud = async () => {
+    if (!user?.clienteId) {
+      toast.current.show({
+        severity: "error",
+        summary: "Error",
+        detail: "No se pudo identificar tu perfil de cliente. Por favor, contacta a soporte.",
+      });
+      return;
+    }
+
     if (!tipoOperacion) {
       toast.current.show({
         severity: "error",
@@ -52,8 +133,17 @@ export default function ClientePropiedades() {
       return;
     }
 
+    if (tipoOperacion === "alquiler" && (!fechaInicio || !fechaFin)) {
+      toast.current.show({
+        severity: "error",
+        summary: "Error",
+        detail: "Debe seleccionar fechas de inicio y fin para el alquiler",
+      });
+      return;
+    }
+
     confirmDialog({
-      message: `¿Confirmar solicitud de ${tipoOperacion} para "${selectedProperty.nombre}"?`,
+      message: `¿Confirmar solicitud de ${tipoOperacion} para "${selectedProperty.direccion}"?`,
       header: "Confirmar Solicitud",
       icon: "pi pi-question-circle",
       acceptClassName: "btn-premium",
@@ -63,29 +153,34 @@ export default function ClientePropiedades() {
         try {
           if (tipoOperacion === "alquiler") {
             await createRental({
-              propertyId: selectedProperty.id,
-              userId: user.id,
-              estado: "pendiente",
+              id_propiedad: selectedProperty.id,
+              id_cliente: user.clienteId,
+              fecha_inicio: fechaInicio.toISOString().split('T')[0],
+              fecha_fin: fechaFin.toISOString().split('T')[0],
+              monto_mensual: selectedProperty.precio || 0,
             });
           } else {
             await createSale({
               id_propiedad: selectedProperty.id,
-              id_cliente: user.id,
-              fecha_venta: new Date().toISOString(),
+              id_cliente: user.clienteId,
+              fecha_venta: new Date().toISOString().split('T')[0],
               monto_total: selectedProperty.precio || 0,
-              estado: "pendiente",
             });
           }
           
           toast.current.show({
             severity: "success",
             summary: "¡Solicitud Enviada!",
-            detail: `Tu solicitud de ${tipoOperacion} ha sido enviada. Te contactaremos pronto.`,
+            detail: `Tu solicitud de ${tipoOperacion} ha sido enviada. Un agente se contactará contigo pronto.`,
             life: 5000,
           });
           setVisible(false);
           setSelectedProperty(null);
+          setTipoOperacion("");
+          setFechaInicio(null);
+          setFechaFin(null);
         } catch (error) {
+          console.error('❌ Error al enviar solicitud:', error);
           toast.current.show({
             severity: "error",
             summary: "Error",
@@ -148,24 +243,23 @@ export default function ClientePropiedades() {
               background: "var(--gold)",
               fontSize: "0.8rem",
               fontWeight: "600",
-              animation: "badgeBounce 2s ease-in-out infinite",
             }}
           />
         </div>
 
-        <h4
-          style={{
-            color: "var(--primary-brown)",
-            fontWeight: "600",
-            marginBottom: "0.5rem",
-          }}
-        >
-          {property.nombre}
-        </h4>
-
-        <div style={{ color: "var(--medium-text)", marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+        <div style={{ color: "var(--medium-text)", marginBottom: "0.5rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
           <i className="pi pi-map-marker" style={{ color: "var(--gold)" }}></i>
           {property.direccion}
+        </div>
+
+        <div style={{ color: "var(--medium-text)", marginBottom: "0.5rem", fontSize: "0.9rem" }}>
+          <i className="pi pi-tag me-2" style={{ color: "var(--sage-green)" }}></i>
+          {property.TipoPropiedad?.nombre || 'Propiedad'}
+        </div>
+
+        <div style={{ color: "var(--medium-text)", marginBottom: "1rem", fontSize: "0.85rem" }}>
+          <i className="pi pi-ruler me-2" style={{ color: "var(--light-brown)" }}></i>
+          {property.tamaño || 'N/A'} m²
         </div>
 
         <div
@@ -209,6 +303,10 @@ export default function ClientePropiedades() {
     );
   };
 
+  const tipoTemplate = (rowData) => {
+    return rowData.TipoPropiedad?.nombre || 'N/A';
+  };
+
   const addressTemplate = (rowData) => {
     return (
       <span>
@@ -229,47 +327,6 @@ export default function ClientePropiedades() {
     );
   };
 
-  const header = (
-    <div className="d-flex justify-content-between align-items-center flex-wrap gap-3">
-      <div className="d-flex align-items-center gap-3 flex-grow-1">
-        <span className="p-input-icon-left" style={{ flex: "1", maxWidth: "400px" }}>
-          <i className="pi pi-search" />
-          <InputText
-            placeholder="Buscar propiedades..."
-            value={globalFilter}
-            onChange={(e) => setGlobalFilter(e.target.value)}
-            className="w-100"
-            style={{
-              borderRadius: "25px",
-              padding: "0.75rem 1rem 0.75rem 2.5rem",
-              border: "2px solid rgba(135, 169, 107, 0.2)",
-            }}
-          />
-        </span>
-        <span className="text-muted">
-          <i className="pi pi-home me-2"></i>
-          {propiedadesDisponibles.length} propiedades disponibles
-        </span>
-      </div>
-      <div className="d-flex gap-2">
-        <Button
-          icon="pi pi-th-large"
-          className={viewMode === "grid" ? "btn-premium" : "p-button-outlined"}
-          onClick={() => setViewMode("grid")}
-          tooltip="Vista de tarjetas"
-          tooltipOptions={{ position: "top" }}
-        />
-        <Button
-          icon="pi pi-list"
-          className={viewMode === "table" ? "btn-premium" : "p-button-outlined"}
-          onClick={() => setViewMode("table")}
-          tooltip="Vista de tabla"
-          tooltipOptions={{ position: "top" }}
-        />
-      </div>
-    </div>
-  );
-
   return (
     <div className="fade-in-up">
       <Toast ref={toast} />
@@ -281,147 +338,153 @@ export default function ClientePropiedades() {
         </p>
       </div>
 
-      {/* Estadísticas rápidas */}
-      <div className="row g-3 mb-4">
-        <div className="col-md-4">
-          <Card
-            className="premium-card text-center"
-            style={{
-              background: "linear-gradient(135deg, #87A96B, #a0c184)",
-              color: "white",
-              border: "none",
-            }}
-          >
-            <i
-              className="pi pi-building mb-2"
-              style={{ fontSize: "2.5rem", opacity: 0.9 }}
-            ></i>
-            <h3 style={{ fontWeight: "700", fontSize: "2rem" }}>
-              {propiedadesDisponibles.length}
-            </h3>
-            <p className="mb-0" style={{ opacity: 0.95 }}>Propiedades Disponibles</p>
-          </Card>
+      {/* Estadísticas y filtros */}
+      <Card className="premium-card mb-4">
+        <div className="row g-3 mb-3">
+          <div className="col-md-12">
+            <div className="d-flex gap-2 align-items-center justify-content-between">
+              <span className="p-input-icon-left flex-grow-1" style={{ maxWidth: "400px" }}>
+                <i className="pi pi-search" />
+                <InputText
+                  placeholder="Buscar por dirección o tipo..."
+                  value={globalFilter}
+                  onChange={(e) => setGlobalFilter(e.target.value)}
+                  className="w-100"
+                  style={{
+                    borderRadius: "25px",
+                    padding: "0.75rem 1rem 0.75rem 2.5rem",
+                    border: "2px solid rgba(135, 169, 107, 0.2)",
+                  }}
+                />
+              </span>
+              <div className="d-flex gap-2">
+                <Button
+                  icon="pi pi-filter-slash"
+                  label="Limpiar"
+                  className="p-button-outlined"
+                  onClick={resetFilters}
+                />
+                <Button
+                  icon="pi pi-th-large"
+                  className={viewMode === "grid" ? "btn-premium" : "p-button-outlined"}
+                  onClick={() => setViewMode("grid")}
+                  tooltip="Vista de tarjetas"
+                />
+                <Button
+                  icon="pi pi-list"
+                  className={viewMode === "table" ? "btn-premium" : "p-button-outlined"}
+                  onClick={() => setViewMode("table")}
+                  tooltip="Vista de tabla"
+                />
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="col-md-4">
-          <Card
-            className="premium-card text-center"
-            style={{
-              background: "linear-gradient(135deg, #D4AF37, #E8C547)",
-              color: "white",
-              border: "none",
-            }}
-          >
-            <i
-              className="pi pi-star mb-2"
-              style={{ fontSize: "2.5rem", opacity: 0.9 }}
-            ></i>
-            <h3 style={{ fontWeight: "700", fontSize: "2rem" }}>100%</h3>
-            <p className="mb-0" style={{ opacity: 0.95 }}>Verificadas</p>
-          </Card>
+
+        {/* ✅ FILTROS SIMPLES */}
+        <div className="row g-3" style={{ background: "rgba(135, 169, 107, 0.05)", padding: "1rem", borderRadius: "10px" }}>
+          <div className="col-md-4">
+            <label className="form-label fw-semibold" style={{ fontSize: "0.9rem" }}>
+              <i className="pi pi-tag me-2"></i>Tipo de Propiedad
+            </label>
+            <MultiSelect
+              value={filters.tipos}
+              options={tipoOptions}
+              onChange={(e) => setFilters({ ...filters, tipos: e.value })}
+              placeholder="Todas"
+              className="w-100"
+              display="chip"
+            />
+          </div>
+          <div className="col-md-4">
+            <label className="form-label fw-semibold" style={{ fontSize: "0.9rem" }}>
+              <i className="pi pi-dollar me-2"></i>Rango de Precio
+            </label>
+            <div className="d-flex gap-2">
+              <InputNumber
+                value={filters.precioMin}
+                onValueChange={(e) => setFilters({ ...filters, precioMin: e.value })}
+                placeholder="Mínimo"
+                mode="currency"
+                currency="USD"
+                locale="en-US"
+                className="w-100"
+              />
+              <InputNumber
+                value={filters.precioMax}
+                onValueChange={(e) => setFilters({ ...filters, precioMax: e.value })}
+                placeholder="Máximo"
+                mode="currency"
+                currency="USD"
+                locale="en-US"
+                className="w-100"
+              />
+            </div>
+          </div>
+          <div className="col-md-4">
+            <label className="form-label fw-semibold" style={{ fontSize: "0.9rem" }}>
+              <i className="pi pi-ruler me-2"></i>Rango de m²
+            </label>
+            <div className="d-flex gap-2">
+              <InputNumber
+                value={filters.tamañoMin}
+                onValueChange={(e) => setFilters({ ...filters, tamañoMin: e.value })}
+                placeholder="Mínimo"
+                suffix=" m²"
+                className="w-100"
+              />
+              <InputNumber
+                value={filters.tamañoMax}
+                onValueChange={(e) => setFilters({ ...filters, tamañoMax: e.value })}
+                placeholder="Máximo"
+                suffix=" m²"
+                className="w-100"
+              />
+            </div>
+          </div>
         </div>
-        <div className="col-md-4">
-          <Card
-            className="premium-card text-center"
-            style={{
-              background: "linear-gradient(135deg, #2D5016, #3d6a1f)",
-              color: "white",
-              border: "none",
-            }}
-          >
-            <i
-              className="pi pi-check-circle mb-2"
-              style={{ fontSize: "2.5rem", opacity: 0.9 }}
-            ></i>
-            <h3 style={{ fontWeight: "700", fontSize: "2rem" }}>24/7</h3>
-            <p className="mb-0" style={{ opacity: 0.95 }}>Soporte</p>
-          </Card>
+
+        <div className="mt-3 d-flex align-items-center justify-content-between">
+          <span style={{ color: "var(--forest-green)", fontWeight: "600" }}>
+            <i className="pi pi-home me-2"></i>
+            {filteredProperties.length} propiedades encontradas
+          </span>
         </div>
-      </div>
+      </Card>
 
       {/* Vista de Grid o Tabla */}
       {viewMode === "grid" ? (
-        <div>
-          <div className="mb-3 d-flex justify-content-between align-items-center">
-            <span className="p-input-icon-left" style={{ width: "400px" }}>
-              <i className="pi pi-search" />
-              <InputText
-                placeholder="Buscar propiedades..."
-                value={globalFilter}
-                onChange={(e) => setGlobalFilter(e.target.value)}
-                className="w-100"
-                style={{
-                  borderRadius: "25px",
-                  padding: "0.75rem 1rem 0.75rem 2.5rem",
-                  border: "2px solid rgba(135, 169, 107, 0.2)",
-                }}
-              />
-            </span>
-            <Button
-              icon="pi pi-list"
-              label="Vista de Tabla"
-              className="p-button-outlined"
-              onClick={() => setViewMode("table")}
-            />
-          </div>
-          <div className="row">
-            {propiedadesDisponibles
-              .filter((p) =>
-                globalFilter
-                  ? p.nombre.toLowerCase().includes(globalFilter.toLowerCase()) ||
-                    p.direccion.toLowerCase().includes(globalFilter.toLowerCase())
-                  : true
-              )
-              .map((property) => (
-                <PropertyCard key={property.id} property={property} />
-              ))}
-          </div>
+        <div className="row">
+          {filteredProperties.map((property) => (
+            <PropertyCard key={property.id} property={property} />
+          ))}
+          {filteredProperties.length === 0 && (
+            <div className="col-12 text-center py-5">
+              <i className="pi pi-inbox" style={{ fontSize: "4rem", color: "var(--sage-green)", opacity: 0.3 }}></i>
+              <h4 className="mt-3" style={{ color: "var(--medium-text)" }}>No se encontraron propiedades</h4>
+              <p className="text-muted">Intenta ajustar los filtros de búsqueda</p>
+            </div>
+          )}
         </div>
       ) : (
         <Card className="premium-card">
           <DataTable
-            value={propiedadesDisponibles}
+            value={filteredProperties}
             paginator
             rows={10}
             rowsPerPageOptions={[5, 10, 25]}
             responsiveLayout="scroll"
-            emptyMessage="No hay propiedades disponibles"
-            header={header}
-            globalFilter={globalFilter}
+            emptyMessage="No hay propiedades disponibles con los filtros aplicados"
             loading={loading}
             stripedRows
             className="p-datatable-sm"
           >
-            <Column
-              field="nombre"
-              header="Propiedad"
-              sortable
-              style={{ minWidth: "200px", fontWeight: "600" }}
-            />
-            <Column
-              field="direccion"
-              header="Ubicación"
-              body={addressTemplate}
-              sortable
-              style={{ minWidth: "200px" }}
-            />
-            <Column
-              field="precio"
-              header="Precio"
-              body={priceTemplate}
-              sortable
-              style={{ minWidth: "130px" }}
-            />
-            <Column
-              field="estado"
-              header="Estado"
-              body={statusTemplate}
-              style={{ minWidth: "120px" }}
-            />
-            <Column
-              header="Acción"
-              body={actionTemplate}
-              style={{ minWidth: "140px", textAlign: "center" }}
-            />
+            <Column field="direccion" header="Dirección" body={addressTemplate} sortable style={{ minWidth: "200px" }} />
+            <Column field="TipoPropiedad.nombre" header="Tipo" body={tipoTemplate} sortable style={{ minWidth: "120px" }} />
+            <Column field="precio" header="Precio" body={priceTemplate} sortable style={{ minWidth: "130px" }} />
+            <Column field="tamaño" header="Tamaño (m²)" sortable style={{ minWidth: "100px" }} />
+            <Column field="estado" header="Estado" body={statusTemplate} style={{ minWidth: "120px" }} />
+            <Column header="Acción" body={actionTemplate} style={{ minWidth: "140px", textAlign: "center" }} />
           </DataTable>
         </Card>
       )}
@@ -441,6 +504,9 @@ export default function ClientePropiedades() {
         onHide={() => {
           setVisible(false);
           setSelectedProperty(null);
+          setTipoOperacion("");
+          setFechaInicio(null);
+          setFechaFin(null);
         }}
         draggable={false}
       >
@@ -455,26 +521,16 @@ export default function ClientePropiedades() {
             }}
           >
             <div className="d-flex align-items-start gap-3">
-              <i
-                className="pi pi-home"
-                style={{ fontSize: "2.5rem", color: "var(--gold)" }}
-              ></i>
+              <i className="pi pi-home" style={{ fontSize: "2.5rem", color: "var(--gold)" }}></i>
               <div>
                 <h5 style={{ color: "var(--primary-brown)", marginBottom: "0.5rem" }}>
-                  {selectedProperty?.nombre}
+                  {selectedProperty?.direccion}
                 </h5>
                 <p style={{ color: "var(--medium-text)", marginBottom: "0.5rem" }}>
-                  <i className="pi pi-map-marker me-2"></i>
-                  {selectedProperty?.direccion}
+                  <i className="pi pi-tag me-2"></i>
+                  {selectedProperty?.TipoPropiedad?.nombre || 'Propiedad'}
                 </p>
-                <p
-                  style={{
-                    fontSize: "1.5rem",
-                    fontWeight: "700",
-                    color: "var(--forest-green)",
-                    marginBottom: 0,
-                  }}
-                >
+                <p style={{ fontSize: "1.5rem", fontWeight: "700", color: "var(--forest-green)", marginBottom: 0 }}>
                   ${(selectedProperty?.precio || 0).toLocaleString()}
                 </p>
               </div>
@@ -483,8 +539,7 @@ export default function ClientePropiedades() {
 
           <div>
             <label className="form-label fw-semibold" style={{ color: "var(--primary-brown)" }}>
-              <i className="pi pi-tag me-2"></i>
-              Tipo de Operación *
+              <i className="pi pi-tag me-2"></i>Tipo de Operación *
             </label>
             <Dropdown
               value={tipoOperacion}
@@ -496,18 +551,44 @@ export default function ClientePropiedades() {
             />
           </div>
 
-          <div
-            className="alert alert-info d-flex align-items-center"
-            style={{
-              background: "rgba(212, 175, 55, 0.1)",
-              border: "1px solid var(--gold)",
-              borderRadius: "10px",
-            }}
-          >
+          {tipoOperacion === "alquiler" && (
+            <>
+              <div>
+                <label className="form-label fw-semibold" style={{ color: "var(--primary-brown)" }}>
+                  <i className="pi pi-calendar me-2"></i>Fecha de Inicio *
+                </label>
+                <Calendar
+                  value={fechaInicio}
+                  onChange={(e) => setFechaInicio(e.value)}
+                  placeholder="Selecciona fecha de inicio"
+                  className="w-100"
+                  dateFormat="dd/mm/yy"
+                  minDate={new Date()}
+                  showIcon
+                />
+              </div>
+
+              <div>
+                <label className="form-label fw-semibold" style={{ color: "var(--primary-brown)" }}>
+                  <i className="pi pi-calendar me-2"></i>Fecha de Fin *
+                </label>
+                <Calendar
+                  value={fechaFin}
+                  onChange={(e) => setFechaFin(e.value)}
+                  placeholder="Selecciona fecha de fin"
+                  className="w-100"
+                  dateFormat="dd/mm/yy"
+                  minDate={fechaInicio || new Date()}
+                  showIcon
+                />
+              </div>
+            </>
+          )}
+
+          <div className="alert alert-info d-flex align-items-center" style={{ background: "rgba(212, 175, 55, 0.1)", border: "1px solid var(--gold)", borderRadius: "10px" }}>
             <i className="pi pi-info-circle me-2" style={{ color: "var(--gold)" }}></i>
             <small>
-              Un agente se pondrá en contacto contigo en las próximas 24 horas para
-              coordinar una visita y completar el proceso.
+              Un agente se pondrá en contacto contigo en las próximas 24 horas para coordinar una visita y completar el proceso.
             </small>
           </div>
 
@@ -519,6 +600,9 @@ export default function ClientePropiedades() {
               onClick={() => {
                 setVisible(false);
                 setSelectedProperty(null);
+                setTipoOperacion("");
+                setFechaInicio(null);
+                setFechaFin(null);
               }}
               style={{ color: "var(--medium-text)" }}
             />
