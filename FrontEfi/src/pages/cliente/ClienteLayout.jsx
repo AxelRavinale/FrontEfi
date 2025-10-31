@@ -1,8 +1,6 @@
-import React from "react";
-import { Routes, Route, useNavigate } from "react-router-dom";
+import React, { useState } from "react";
+import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
-import { Menubar } from "primereact/menubar";
-import { Avatar } from "primereact/avatar";
 import { ToastContainer } from "react-toastify";
 import { ConfirmDialog } from "primereact/confirmdialog";
 
@@ -16,69 +14,293 @@ import ClienteMisSolicitudes from "./ClienteMisSolicitudes";
 export default function ClienteLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [hoveredItem, setHoveredItem] = useState(null);
+  const [hoverLogout, setHoverLogout] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
 
   const menuItems = [
     {
       label: "Inicio",
-      icon: "pi pi-home",
-      command: () => navigate("/cliente/dashboard"),
+      icon: "🏡",
+      path: "/cliente/dashboard",
     },
     {
       label: "Propiedades",
-      icon: "pi pi-building",
-      command: () => navigate("/cliente/propiedades"),
+      icon: "🏠",
+      path: "/cliente/propiedades",
     },
     {
       label: "Mis Solicitudes",
-      icon: "pi pi-send",
-      command: () => navigate("/cliente/solicitudes"),
-      style: { 
-        background: "linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(135, 169, 107, 0.1))",
-        fontWeight: "600",
-        color: "var(--primary-brown)"
-      }
+      icon: "📤",
+      path: "/cliente/solicitudes",
     },
     {
       label: "Mis Alquileres",
-      icon: "pi pi-key",
-      command: () => navigate("/cliente/alquileres"),
+      icon: "🔑",
+      path: "/cliente/alquileres",
     },
     {
       label: "Mis Compras",
-      icon: "pi pi-shopping-cart",
-      command: () => navigate("/cliente/compras"),
+      icon: "🛍️",
+      path: "/cliente/compras",
     },
   ];
 
-  const endContent = (
-    <div className="d-flex align-items-center gap-3">
-      <span className="text-muted">
-        <i className="pi pi-user me-2"></i>
-        {user?.nombre} 
-      </span>
-      <Avatar
-        label={user?.nombre?.charAt(0).toUpperCase()}
-        shape="circle"
-        style={{ background: "var(--forest-green)", color: "white" }}
-      />
-      <button className="btn btn-premium" onClick={logout}>
-        <i className="pi pi-sign-out me-2"></i>Salir
-      </button>
-    </div>
-  );
+  const isActive = (path) => location.pathname === path;
+
+  // Estilos - Tema CLIENTE (Terracota/Cálido)
+  const navbarStyle = {
+    background: "linear-gradient(to right, #3d2817, #5a3d2b)",
+    borderBottom: "2px solid #8b6f47",
+    padding: "1rem 0",
+    boxShadow: "0 4px 12px rgba(61, 40, 23, 0.3)",
+  };
+
+  const brandStyle = {
+    fontSize: "1.5rem",
+    fontWeight: "700",
+    color: "#f4a261",
+    textDecoration: "none",
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    transition: "transform 0.3s ease",
+  };
+
+  const clienteBadgeStyle = {
+    background: "linear-gradient(135deg, #e76f51 0%, #d4603f 100%)",
+    color: "white",
+    fontSize: "0.7rem",
+    padding: "3px 8px",
+    borderRadius: "12px",
+    fontWeight: "600",
+    marginLeft: "8px",
+    boxShadow: "0 2px 6px rgba(231, 111, 81, 0.4)",
+  };
+
+  const getButtonStyle = (index, isActiveBtn) => ({
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    padding: "10px 20px",
+    border: "none",
+    background: isActiveBtn 
+      ? "linear-gradient(135deg, #e76f51 0%, #d4603f 100%)"
+      : hoveredItem === index 
+        ? "linear-gradient(135deg, #e76f51 0%, #d4603f 100%)"
+        : "transparent",
+    borderRadius: "12px",
+    color: isActiveBtn || hoveredItem === index ? "white" : "#f4a261",
+    fontWeight: "500",
+    cursor: "pointer",
+    transition: "all 0.3s ease",
+    boxShadow: isActiveBtn || hoveredItem === index 
+      ? "0 4px 12px rgba(231, 111, 81, 0.4)" 
+      : "none",
+    transform: hoveredItem === index ? "translateY(-2px)" : "translateY(0)",
+  });
+
+  const iconStyle = (index) => ({
+    fontSize: "1.2rem",
+    display: "inline-block",
+    transition: "transform 0.3s ease",
+    transform: hoveredItem === index ? "scale(1.2) rotate(5deg)" : "scale(1)",
+  });
+
+  const avatarStyle = {
+    width: "42px",
+    height: "42px",
+    borderRadius: "50%",
+    background: "linear-gradient(135deg, #e76f51 0%, #d4603f 100%)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "1.1rem",
+    fontWeight: "600",
+    border: "2px solid #8b6f47",
+    color: "white",
+    boxShadow: "0 2px 8px rgba(231, 111, 81, 0.5)",
+  };
+
+  const logoutButtonStyle = {
+    padding: "10px 24px",
+    background: hoverLogout
+      ? "linear-gradient(135deg, #d4603f 0%, #c14d2d 100%)"
+      : "linear-gradient(135deg, #e76f51 0%, #d4603f 100%)",
+    color: "white",
+    border: "none",
+    borderRadius: "12px",
+    fontWeight: "600",
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    transition: "all 0.3s ease",
+    boxShadow: "0 4px 12px rgba(231, 111, 81, 0.4)",
+    transform: hoverLogout ? "translateY(-2px)" : "translateY(0)",
+    cursor: "pointer",
+  };
+
+  const userInfoStyle = {
+    color: "#f4a261",
+    fontSize: "0.9rem",
+    fontWeight: "500",
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+  };
+
+  const darkModeToggleStyle = {
+    background: darkMode ? "#e76f51" : "rgba(231, 111, 81, 0.2)",
+    border: "2px solid #e76f51",
+    borderRadius: "20px",
+    padding: "8px 16px",
+    color: darkMode ? "white" : "#e76f51",
+    cursor: "pointer",
+    transition: "all 0.3s ease",
+    fontWeight: "600",
+    fontSize: "0.9rem",
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+  };
 
   return (
     <>
-      <Menubar
-        model={menuItems}
-        end={endContent}
+      {/* Navbar Moderno - Cliente */}
+      <nav style={navbarStyle}>
+        <div className="container-fluid px-4">
+          <div className="d-flex justify-content-between align-items-center flex-wrap">
+            {/* Logo/Marca con badge Cliente */}
+            <a href="#" style={brandStyle}>
+              <span style={{ fontSize: "1.8rem" }}>🏘️</span>
+              <span>Inmobiliaria</span>
+              <span style={clienteBadgeStyle}>CLIENTE</span>
+            </a>
+
+            {/* Menú de navegación - Desktop */}
+            <div className="d-none d-lg-flex align-items-center gap-2 flex-grow-1 justify-content-center">
+              {menuItems.map((item, index) => (
+                <button
+                  key={index}
+                  style={getButtonStyle(index, isActive(item.path))}
+                  onClick={() => navigate(item.path)}
+                  onMouseEnter={() => setHoveredItem(index)}
+                  onMouseLeave={() => setHoveredItem(null)}
+                >
+                  <span style={iconStyle(index)}>{item.icon}</span>
+                  <span style={{ fontSize: "0.95rem" }}>{item.label}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Usuario, Dark Mode y Salir */}
+            <div className="d-none d-lg-flex align-items-center gap-3">
+              {/* Toggle Modo Oscuro */}
+              <button
+                style={darkModeToggleStyle}
+                onClick={() => setDarkMode(!darkMode)}
+              >
+                <span>{darkMode ? "🌙" : "☀️"}</span>
+                <span>{darkMode ? "Oscuro" : "Claro"}</span>
+              </button>
+
+              <span style={userInfoStyle}>
+                <span>👤</span>
+                <span>{user?.nombre}</span>
+              </span>
+              <div style={avatarStyle}>
+                {user?.nombre?.charAt(0).toUpperCase()}
+              </div>
+              <button
+                style={logoutButtonStyle}
+                onClick={logout}
+                onMouseEnter={() => setHoverLogout(true)}
+                onMouseLeave={() => setHoverLogout(false)}
+              >
+                <span>🚪</span>
+                <span>Salir</span>
+              </button>
+            </div>
+
+            {/* Menú móvil - Hamburguesa */}
+            <button
+              className="btn d-lg-none"
+              type="button"
+              data-bs-toggle="collapse"
+              data-bs-target="#mobileMenuCliente"
+              style={{
+                border: "2px solid #e76f51",
+                borderRadius: "8px",
+                color: "#f4a261",
+              }}
+            >
+              ☰
+            </button>
+          </div>
+
+          {/* Menú desplegable móvil */}
+          <div className="collapse d-lg-none mt-3" id="mobileMenuCliente">
+            <div className="d-flex flex-column gap-2">
+              {/* Toggle modo oscuro móvil */}
+              <button
+                style={{ ...darkModeToggleStyle, width: "100%", justifyContent: "center" }}
+                onClick={() => setDarkMode(!darkMode)}
+              >
+                <span>{darkMode ? "🌙" : "☀️"}</span>
+                <span>{darkMode ? "Modo Oscuro" : "Modo Claro"}</span>
+              </button>
+
+              {menuItems.map((item, index) => (
+                <button
+                  key={index}
+                  style={{
+                    ...getButtonStyle(index, isActive(item.path)),
+                    justifyContent: "flex-start",
+                  }}
+                  onClick={() => navigate(item.path)}
+                >
+                  <span style={{ fontSize: "1.2rem" }}>{item.icon}</span>
+                  <span>{item.label}</span>
+                </button>
+              ))}
+              <div
+                className="mt-3 pt-3"
+                style={{ borderTop: "1px solid #8b6f47" }}
+              >
+                <div className="d-flex align-items-center gap-3 mb-3">
+                  <div style={avatarStyle}>
+                    {user?.nombre?.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <span style={userInfoStyle}>{user?.nombre}</span>
+                    <div style={clienteBadgeStyle}>CLIENTE</div>
+                  </div>
+                </div>
+                <button
+                  style={{ ...logoutButtonStyle, width: "100%" }}
+                  onClick={logout}
+                >
+                  <span>🚪</span>
+                  <span>Salir</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Contenido principal - Con modo oscuro */}
+      <div
+        className="container-fluid p-4"
         style={{
-          background: "rgba(255,255,255,0.95)",
-          backdropFilter: "blur(20px)",
-          borderBottom: "1px solid rgba(45, 80, 22, 0.2)",
+          minHeight: "calc(100vh - 80px)",
+          background: darkMode 
+            ? "linear-gradient(to bottom, #5a3d2b, #3d2817)"
+            : "linear-gradient(to bottom, #fdebd0, #fadbd8)",
+          transition: "background 0.3s ease",
         }}
-      />
-      <div className="container-fluid p-4" style={{ minHeight: "calc(100vh - 70px)" }}>
+      >
         <Routes>
           <Route path="/" element={<ClienteDashboard />} />
           <Route path="/dashboard" element={<ClienteDashboard />} />
@@ -88,6 +310,7 @@ export default function ClienteLayout() {
           <Route path="/compras" element={<ClienteMisCompras />} />
         </Routes>
       </div>
+
       <ToastContainer position="top-right" autoClose={3000} />
       <ConfirmDialog />
     </>
