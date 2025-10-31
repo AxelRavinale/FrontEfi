@@ -89,7 +89,7 @@ export default function ClienteMisCompras() {
   // Calcular total invertido filtrado
   const totalInvertido = filteredSales
     .filter((s) => s.estado === "finalizada")
-    .reduce((acc, s) => acc + (s.monto_total || 0), 0);
+    .reduce((acc, s) => acc + parseFloat(s.monto_total || 0), 0);
 
   const resetFilters = () => {
     setFilters({
@@ -138,16 +138,35 @@ export default function ClienteMisCompras() {
   };
 
   const propertyTemplate = (rowData) => {
-    const property = properties.find((p) => p.id === rowData.id_propiedad);
-    return property ? (
-      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-        <i className="pi pi-home" style={{ color: "var(--gold)", fontSize: "1.2rem" }}></i>
-        <span style={{ fontWeight: "600" }}>{property.direccion}</span>
-      </div>
-    ) : (
-      <span className="text-muted">Propiedad no encontrada</span>
+    // Primero intenta buscar en el array de properties
+    let property = properties.find((p) => p.id === rowData.id_propiedad);
+    
+    // Si no la encuentra, usa la propiedad que viene en rowData.Propiedad
+    if (!property && rowData.Propiedad) {
+      property = rowData.Propiedad;
+    }
+  
+    // Si encuentra la propiedad, muestra el ícono y la dirección
+    if (property) {
+      return (
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <i
+            className="pi pi-home"
+            style={{ color: "var(--gold)", fontSize: "1.2rem" }}
+          ></i>
+          <span style={{ fontWeight: "600" }}>{property.direccion}</span>
+        </div>
+      );
+    }
+  
+    // Si no la encuentra, muestra un fallback
+    return (
+      <span style={{ color: "var(--medium-text)" }}>
+        Propiedad #{rowData.id_propiedad || "-"}
+      </span>
     );
   };
+
 
   const dateTemplate = (rowData) => {
     if (!rowData.fecha_venta) return <span className="text-muted">-</span>;

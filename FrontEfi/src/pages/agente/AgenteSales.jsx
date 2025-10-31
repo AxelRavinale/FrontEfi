@@ -112,7 +112,7 @@ export default function AgenteSales() {
   // Calcular estadísticas dinámicas
   const totalIngresos = filteredSales
     .filter((s) => s.estado === "finalizada")
-    .reduce((acc, s) => acc + (s.monto_total || 0), 0);
+    .reduce((acc, s) => acc + parseFloat(s.monto_total || 0), 0);
 
   const resetFilters = () => {
     setFilters({
