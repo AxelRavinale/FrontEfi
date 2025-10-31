@@ -7,32 +7,129 @@ import { Toast } from "primereact/toast";
 import { Card } from "primereact/card";
 import { Tag } from "primereact/tag";
 import { Timeline } from "primereact/timeline";
+import { InputText } from "primereact/inputtext";
+import { MultiSelect } from "primereact/multiselect";
+import { Calendar } from "primereact/calendar";
+import { InputNumber } from "primereact/inputnumber";
 import { useSales } from "../../contexts/SalesContext";
 import { useProperties } from "../../contexts/PropertiesContext";
 import { useAuth } from "../../contexts/AuthContext";
 
 export default function ClienteMisCompras() {
-  const { sales, loading } = useSales();
+  const { sales, downloadRecibo, loading } = useSales();
   const { properties } = useProperties();
   const { user } = useAuth();
+  
   const [visible, setVisible] = useState(false);
   const [selectedSale, setSelectedSale] = useState(null);
+  const [downloading, setDownloading] = useState(false);
+  const [globalFilter, setGlobalFilter] = useState("");
+  
+  // ✅ FILTROS SIMPLES PARA CLIENTE
+  const [filters, setFilters] = useState({
+    estados: [],
+    montoMin: null,
+    montoMax: null,
+    fechaDesde: null,
+    fechaHasta: null,
+  });
+  
   const toast = useRef(null);
 
   // Filtrar solo compras del usuario actual
-  const misCompras = sales.filter((s) => s.id_cliente === user?.id);
+  const misCompras = sales.filter((s) => s.id_cliente === user?.clienteId);
 
-  // Calcular total invertido
-  const totalInvertido = misCompras
-    .filter((s) => s.estado === "finalizado")
-    .reduce((acc, s) => acc + (s.monto_total || 0), 0);
+  const estadoOptions = [
+    { label: "Pendiente", value: "pendiente" },
+    { label: "Aprobado", value: "aprobado" },
+    { label: "Finalizada", value: "finalizada" },
+    { label: "Cancelada", value: "cancelada" },
+  ];
+
+  // ✅ FUNCIÓN DE FILTRADO
+  const getFilteredSales = () => {
+    let filtered = misCompras;
+
+    // Filtro de búsqueda global
+    if (globalFilter) {
+      filtered = filtered.filter(s => 
+        s.Propiedad?.direccion?.toLowerCase().includes(globalFilter.toLowerCase()) ||
+        s.id.toString().includes(globalFilter)
+      );
+    }
+
+    // Filtro por estados
+    if (filters.estados.length > 0) {
+      filtered = filtered.filter(s => filters.estados.includes(s.estado));
+    }
+
+    // Filtro por monto
+    if (filters.montoMin !== null) {
+      filtered = filtered.filter(s => parseFloat(s.monto_total) >= filters.montoMin);
+    }
+    if (filters.montoMax !== null) {
+      filtered = filtered.filter(s => parseFloat(s.monto_total) <= filters.montoMax);
+    }
+
+    // Filtro por fecha de venta
+    if (filters.fechaDesde) {
+      filtered = filtered.filter(s => new Date(s.fecha_venta) >= filters.fechaDesde);
+    }
+    if (filters.fechaHasta) {
+      const fechaHastaEnd = new Date(filters.fechaHasta);
+      fechaHastaEnd.setHours(23, 59, 59, 999);
+      filtered = filtered.filter(s => new Date(s.fecha_venta) <= fechaHastaEnd);
+    }
+
+    return filtered;
+  };
+
+  const filteredSales = getFilteredSales();
+
+  // Calcular total invertido filtrado
+  const totalInvertido = filteredSales
+    .filter((s) => s.estado === "finalizada")
+    .reduce((acc, s) => acc + parseFloat(s.monto_total || 0), 0);
+
+  const resetFilters = () => {
+    setFilters({
+      estados: [],
+      montoMin: null,
+      montoMax: null,
+      fechaDesde: null,
+      fechaHasta: null,
+    });
+    setGlobalFilter("");
+  };
+
+  const handleDownloadRecibo = async (id) => {
+    setDownloading(true);
+    try {
+      await downloadRecibo(id);
+      toast.current.show({
+        severity: "success",
+        summary: "Descarga Exitosa",
+        detail: "El recibo se ha descargado correctamente",
+        life: 3000,
+      });
+    } catch (error) {
+      toast.current.show({
+        severity: "error",
+        summary: "Error al Descargar",
+        detail: error.message || "No se pudo descargar el recibo",
+        life: 4000,
+      });
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const statusTemplate = (rowData) => {
     const statusMap = {
       pendiente: { severity: "warning", label: "Pendiente", icon: "pi-clock" },
       aprobado: { severity: "info", label: "Aprobado", icon: "pi-check" },
-      finalizado: { severity: "success", label: "Finalizado", icon: "pi-check-circle" },
-      cancelado: { severity: "danger", label: "Cancelado", icon: "pi-times-circle" },
+      finalizada: { severity: "success", label: "Finalizada", icon: "pi-check-circle" },
+      cancelada: { severity: "danger", label: "Cancelada", icon: "pi-times-circle" },
     };
     const status = statusMap[rowData.estado] || statusMap.pendiente;
     return (
@@ -41,28 +138,35 @@ export default function ClienteMisCompras() {
   };
 
   const propertyTemplate = (rowData) => {
-    const property = properties.find((p) => p.id === rowData.id_propiedad);
-    return property ? (
-      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-        <i className="pi pi-home" style={{ color: "var(--gold)", fontSize: "1.2rem" }}></i>
-        <span style={{ fontWeight: "600" }}>{property.nombre}</span>
-      </div>
-    ) : (
-      <span className="text-muted">Propiedad no encontrada</span>
+    // Primero intenta buscar en el array de properties
+    let property = properties.find((p) => p.id === rowData.id_propiedad);
+    
+    // Si no la encuentra, usa la propiedad que viene en rowData.Propiedad
+    if (!property && rowData.Propiedad) {
+      property = rowData.Propiedad;
+    }
+  
+    // Si encuentra la propiedad, muestra el ícono y la dirección
+    if (property) {
+      return (
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <i
+            className="pi pi-home"
+            style={{ color: "var(--gold)", fontSize: "1.2rem" }}
+          ></i>
+          <span style={{ fontWeight: "600" }}>{property.direccion}</span>
+        </div>
+      );
+    }
+  
+    // Si no la encuentra, muestra un fallback
+    return (
+      <span style={{ color: "var(--medium-text)" }}>
+        Propiedad #{rowData.id_propiedad || "-"}
+      </span>
     );
   };
 
-  const addressTemplate = (rowData) => {
-    const property = properties.find((p) => p.id === rowData.id_propiedad);
-    return property ? (
-      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-        <i className="pi pi-map-marker" style={{ color: "var(--sage-green)" }}></i>
-        <span>{property.direccion}</span>
-      </div>
-    ) : (
-      <span className="text-muted">-</span>
-    );
-  };
 
   const dateTemplate = (rowData) => {
     if (!rowData.fecha_venta) return <span className="text-muted">-</span>;
@@ -88,32 +192,22 @@ export default function ClienteMisCompras() {
       <div className="d-flex gap-2">
         <Button
           icon="pi pi-eye"
-          label="Ver"
-          className="p-button-sm"
-          style={{
-            background: "linear-gradient(135deg, var(--sage-green), var(--gold))",
-            border: "none",
-            color: "white",
-          }}
+          className="p-button-sm p-button-info"
+          tooltip="Ver Detalles"
+          tooltipOptions={{ position: "top" }}
           onClick={() => {
             setSelectedSale(rowData);
             setVisible(true);
           }}
         />
-        {rowData.estado === "finalizado" && (
+        {rowData.estado === "finalizada" && (
           <Button
             icon="pi pi-file-pdf"
             className="p-button-sm p-button-help"
             tooltip="Descargar Recibo"
             tooltipOptions={{ position: "top" }}
-            onClick={() => {
-              toast.current.show({
-                severity: "info",
-                summary: "Descarga PDF",
-                detail: "Función en desarrollo",
-                life: 3000,
-              });
-            }}
+            loading={downloading}
+            onClick={() => handleDownloadRecibo(rowData.id)}
           />
         )}
       </div>
@@ -131,7 +225,7 @@ export default function ClienteMisCompras() {
       },
     ];
 
-    if (sale.estado === "aprobado" || sale.estado === "finalizado") {
+    if (sale.estado === "aprobado" || sale.estado === "finalizada") {
       events.push({
         status: "Aprobado",
         icon: "pi-check",
@@ -140,7 +234,7 @@ export default function ClienteMisCompras() {
       });
     }
 
-    if (sale.estado === "finalizado") {
+    if (sale.estado === "finalizada") {
       events.push({
         status: "Pago Procesado",
         icon: "pi-dollar",
@@ -155,9 +249,9 @@ export default function ClienteMisCompras() {
       });
     }
 
-    if (sale.estado === "cancelado") {
+    if (sale.estado === "cancelada") {
       events.push({
-        status: "Cancelado",
+        status: "Cancelada",
         icon: "pi-times-circle",
         color: "#dc3545",
         completed: true,
@@ -211,6 +305,90 @@ export default function ClienteMisCompras() {
     );
   };
 
+  const header = (
+    <div className="d-flex flex-column gap-3">
+      <div className="d-flex justify-content-between align-items-center">
+        <span className="p-input-icon-left" style={{ width: "300px" }}>
+          <i className="pi pi-search" />
+          <InputText
+            placeholder="Buscar por propiedad o ID..."
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+            className="w-100"
+          />
+        </span>
+        <Button
+          label="Limpiar Filtros"
+          icon="pi pi-filter-slash"
+          className="p-button-outlined"
+          onClick={resetFilters}
+        />
+      </div>
+
+      {/* ✅ PANEL DE FILTROS SIMPLES */}
+      <Card className="p-3" style={{ background: "rgba(135, 169, 107, 0.05)" }}>
+        <div className="row g-3">
+          <div className="col-md-3">
+            <label className="form-label fw-semibold" style={{ fontSize: "0.85rem" }}>Estados</label>
+            <MultiSelect
+              value={filters.estados}
+              options={estadoOptions}
+              onChange={(e) => setFilters({ ...filters, estados: e.value })}
+              placeholder="Todos"
+              className="w-100"
+              display="chip"
+            />
+          </div>
+          <div className="col-md-3">
+            <label className="form-label fw-semibold" style={{ fontSize: "0.85rem" }}>Monto (Min-Max)</label>
+            <div className="d-flex gap-2">
+              <InputNumber
+                value={filters.montoMin}
+                onValueChange={(e) => setFilters({ ...filters, montoMin: e.value })}
+                placeholder="Min"
+                mode="currency"
+                currency="USD"
+                locale="en-US"
+                className="w-100"
+              />
+              <InputNumber
+                value={filters.montoMax}
+                onValueChange={(e) => setFilters({ ...filters, montoMax: e.value })}
+                placeholder="Max"
+                mode="currency"
+                currency="USD"
+                locale="en-US"
+                className="w-100"
+              />
+            </div>
+          </div>
+          <div className="col-md-3">
+            <label className="form-label fw-semibold" style={{ fontSize: "0.85rem" }}>Fecha Compra (Desde)</label>
+            <Calendar
+              value={filters.fechaDesde}
+              onChange={(e) => setFilters({ ...filters, fechaDesde: e.value })}
+              placeholder="Desde"
+              dateFormat="dd/mm/yy"
+              showIcon
+              className="w-100"
+            />
+          </div>
+          <div className="col-md-3">
+            <label className="form-label fw-semibold" style={{ fontSize: "0.85rem" }}>Fecha Compra (Hasta)</label>
+            <Calendar
+              value={filters.fechaHasta}
+              onChange={(e) => setFilters({ ...filters, fechaHasta: e.value })}
+              placeholder="Hasta"
+              dateFormat="dd/mm/yy"
+              showIcon
+              className="w-100"
+            />
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+
   return (
     <div className="fade-in-up">
       <Toast ref={toast} />
@@ -222,7 +400,7 @@ export default function ClienteMisCompras() {
         </p>
       </div>
 
-      {/* Estadísticas */}
+      {/* Estadísticas dinámicas */}
       <div className="row g-3 mb-4">
         <div className="col-md-3">
           <Card
@@ -238,9 +416,9 @@ export default function ClienteMisCompras() {
               style={{ fontSize: "2.5rem", opacity: 0.9 }}
             ></i>
             <h3 style={{ fontWeight: "700", fontSize: "2rem" }}>
-              {misCompras.length}
+              {filteredSales.length}
             </h3>
-            <p className="mb-0" style={{ opacity: 0.95 }}>Total Compras</p>
+            <p className="mb-0" style={{ opacity: 0.95 }}>Compras Filtradas</p>
           </Card>
         </div>
         <div className="col-md-3">
@@ -257,7 +435,7 @@ export default function ClienteMisCompras() {
               style={{ fontSize: "2.5rem", opacity: 0.9 }}
             ></i>
             <h3 style={{ fontWeight: "700", fontSize: "2rem" }}>
-              {misCompras.filter((s) => s.estado === "pendiente").length}
+              {filteredSales.filter((s) => s.estado === "pendiente").length}
             </h3>
             <p className="mb-0" style={{ opacity: 0.95 }}>Pendientes</p>
           </Card>
@@ -276,7 +454,7 @@ export default function ClienteMisCompras() {
               style={{ fontSize: "2.5rem", opacity: 0.9 }}
             ></i>
             <h3 style={{ fontWeight: "700", fontSize: "2rem" }}>
-              {misCompras.filter((s) => s.estado === "finalizado").length}
+              {filteredSales.filter((s) => s.estado === "finalizada").length}
             </h3>
             <p className="mb-0" style={{ opacity: 0.95 }}>Finalizadas</p>
           </Card>
@@ -305,7 +483,7 @@ export default function ClienteMisCompras() {
       {/* Tabla de Compras */}
       <Card className="premium-card">
         <DataTable
-          value={misCompras}
+          value={filteredSales}
           paginator
           rows={10}
           rowsPerPageOptions={[5, 10, 25]}
@@ -313,13 +491,14 @@ export default function ClienteMisCompras() {
           emptyMessage={
             <div className="text-center p-5">
               <i className="pi pi-shopping-bag" style={{ fontSize: "3rem", color: "var(--gold)", marginBottom: "1rem" }}></i>
-              <h5 style={{ color: "var(--primary-brown)" }}>No tienes compras registradas</h5>
-              <p className="text-muted">Explora nuestras propiedades disponibles y realiza tu primera compra</p>
+              <h5 style={{ color: "var(--primary-brown)" }}>No se encontraron compras con los filtros aplicados</h5>
+              <p className="text-muted">Ajusta tus filtros o explora nuestras propiedades disponibles</p>
             </div>
           }
           loading={loading}
           stripedRows
           className="p-datatable-sm"
+          header={header}
         >
           <Column
             field="id"
@@ -331,12 +510,7 @@ export default function ClienteMisCompras() {
             header="Propiedad"
             body={propertyTemplate}
             sortable
-            style={{ minWidth: "200px" }}
-          />
-          <Column
-            header="Ubicación"
-            body={addressTemplate}
-            style={{ minWidth: "200px" }}
+            style={{ minWidth: "250px" }}
           />
           <Column
             header="Fecha"
@@ -360,7 +534,7 @@ export default function ClienteMisCompras() {
           <Column
             header="Acciones"
             body={actionTemplate}
-            style={{ minWidth: "180px", textAlign: "center" }}
+            style={{ minWidth: "140px", textAlign: "center" }}
           />
         </DataTable>
       </Card>
@@ -411,11 +585,11 @@ export default function ClienteMisCompras() {
                 </div>
                 <div style={{ flex: 1 }}>
                   <h5 style={{ color: "var(--primary-brown)", marginBottom: "0.5rem" }}>
-                    {properties.find((p) => p.id === selectedSale.id_propiedad)?.nombre || "Propiedad"}
+                    {properties.find((p) => p.id === selectedSale.id_propiedad)?.direccion || "Propiedad"}
                   </h5>
                   <p style={{ color: "var(--medium-text)", marginBottom: "0.5rem" }}>
                     <i className="pi pi-map-marker me-2"></i>
-                    {properties.find((p) => p.id === selectedSale.id_propiedad)?.direccion || "-"}
+                    {properties.find((p) => p.id === selectedSale.id_propiedad)?.descripcion || "-"}
                   </p>
                   <div className="d-flex align-items-center gap-2">
                     {statusTemplate(selectedSale)}
@@ -535,7 +709,7 @@ export default function ClienteMisCompras() {
               </div>
             )}
 
-            {selectedSale.estado === "finalizado" && (
+            {selectedSale.estado === "finalizada" && (
               <div
                 className="alert alert-success d-flex align-items-center"
                 style={{
@@ -551,7 +725,7 @@ export default function ClienteMisCompras() {
               </div>
             )}
 
-            {selectedSale.estado === "cancelado" && (
+            {selectedSale.estado === "cancelada" && (
               <div
                 className="alert alert-danger d-flex align-items-center"
                 style={{
@@ -579,19 +753,13 @@ export default function ClienteMisCompras() {
                 }}
                 style={{ color: "var(--medium-text)" }}
               />
-              {selectedSale.estado === "finalizado" && (
+              {selectedSale.estado === "finalizada" && (
                 <Button
                   label="Descargar Recibo"
                   icon="pi pi-file-pdf"
                   className="btn-premium"
-                  onClick={() => {
-                    toast.current.show({
-                      severity: "success",
-                      summary: "Descarga Iniciada",
-                      detail: "Tu recibo se está descargando",
-                      life: 3000,
-                    });
-                  }}
+                  loading={downloading}
+                  onClick={() => handleDownloadRecibo(selectedSale.id)}
                   style={{
                     background: "linear-gradient(135deg, var(--gold), var(--light-gold))",
                     border: "none",

@@ -4,61 +4,66 @@ import { Column } from "primereact/column";
 import { Button } from "primereact/button";
 import { Dialog } from "primereact/dialog";
 import { InputText } from "primereact/inputtext";
+import { Dropdown } from "primereact/dropdown";
 import { Toast } from "primereact/toast";
-import { confirmDialog } from "primereact/confirmdialog";
 import { Card } from "primereact/card";
 import { useClients } from "../../contexts/ClientsContext";
+import { useUsers } from "../../contexts/UsersContext";
 
 export default function AgenteClients() {
-  const { clients, createClient, updateClient, deleteClient, loading } =
-    useClients();
+  const { clients, createClient, updateClient, loading } = useClients();
+  const { users } = useUsers();
   const [visible, setVisible] = useState(false);
   const [editingClient, setEditingClient] = useState(null);
+  
+  // ✅ Campos según el backend
   const [formData, setFormData] = useState({
-    nombre: "",
-    email: "",
+    documento_identidad: "",
     telefono: "",
+    id_usuario: null,
   });
+  
   const [globalFilter, setGlobalFilter] = useState("");
   const toast = useRef(null);
 
+  // ✅ Opciones de usuarios para el dropdown (solo clientes)
+  const userOptions = users
+    .filter(u => u.rol === 'cliente')
+    .map(u => ({
+      label: `${u.nombre} (${u.email})`,
+      value: u.id
+    }));
+
   const resetForm = () => {
     setFormData({
-      nombre: "",
-      email: "",
+      documento_identidad: "",
       telefono: "",
+      id_usuario: null,
     });
     setEditingClient(null);
+  };
+
+  const openNew = () => {
+    resetForm();
+    setVisible(true);
   };
 
   const openEdit = (client) => {
     setEditingClient(client);
     setFormData({
-      nombre: client.nombre || "",
-      email: client.email || "",
+      documento_identidad: client.documento_identidad || "",
       telefono: client.telefono || "",
+      id_usuario: client.id_usuario || null,
     });
     setVisible(true);
   };
 
   const handleSubmit = async () => {
-    // Validaciones
-    if (!formData.nombre || !formData.email) {
+    if (!formData.documento_identidad || !formData.id_usuario) {
       toast.current.show({
         severity: "error",
         summary: "Error",
-        detail: "Nombre y email son obligatorios",
-      });
-      return;
-    }
-
-    // Validar email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      toast.current.show({
-        severity: "error",
-        summary: "Error",
-        detail: "Email inválido",
+        detail: "Documento de identidad y usuario son obligatorios",
       });
       return;
     }
@@ -85,36 +90,44 @@ export default function AgenteClients() {
       toast.current.show({
         severity: "error",
         summary: "Error",
-        detail: error.message || "Error en la operación",
+        detail: error.response?.data?.message || error.message || "Error en la operación",
       });
     }
   };
 
-  const handleDelete = (client) => {
-    confirmDialog({
-      message: `¿Está seguro de eliminar al cliente "${client.nombre}"?`,
-      header: "Confirmar Eliminación",
-      icon: "pi pi-exclamation-triangle",
-      acceptClassName: "p-button-danger",
-      acceptLabel: "Sí, eliminar",
-      rejectLabel: "Cancelar",
-      accept: async () => {
-        try {
-          await deleteClient(client.id);
-          toast.current.show({
-            severity: "success",
-            summary: "Eliminado",
-            detail: "Cliente eliminado exitosamente",
-          });
-        } catch (error) {
-          toast.current.show({
-            severity: "error",
-            summary: "Error",
-            detail: error.message || "Error al eliminar",
-          });
-        }
-      },
-    });
+  const nombreTemplate = (rowData) => {
+    return rowData.Usuario?.nombre || <span className="text-muted">Sin usuario</span>;
+  };
+
+  const emailTemplate = (rowData) => {
+    return rowData.Usuario?.email ? (
+      <a href={`mailto:${rowData.Usuario.email}`} className="text-decoration-none">
+        <i className="pi pi-envelope me-2"></i>
+        {rowData.Usuario.email}
+      </a>
+    ) : (
+      <span className="text-muted">Sin email</span>
+    );
+  };
+
+  const phoneTemplate = (rowData) => {
+    return rowData.telefono ? (
+      <span>
+        <i className="pi pi-phone me-2"></i>
+        {rowData.telefono}
+      </span>
+    ) : (
+      <span className="text-muted">Sin teléfono</span>
+    );
+  };
+
+  const documentTemplate = (rowData) => {
+    return (
+      <span>
+        <i className="pi pi-id-card me-2"></i>
+        {rowData.documento_identidad}
+      </span>
+    );
   };
 
   const actionTemplate = (rowData) => {
@@ -128,22 +141,15 @@ export default function AgenteClients() {
           tooltipOptions={{ position: "top" }}
         />
         <Button
-          icon="pi pi-trash"
-          className="p-button-rounded p-button-danger p-button-sm"
-          onClick={() => handleDelete(rowData)}
-          tooltip="Eliminar"
-          tooltipOptions={{ position: "top" }}
-        />
-        <Button
-          icon="pi pi-phone"
-          className="p-button-rounded p-button-success p-button-sm"
-          tooltip="Contactar"
+          icon="pi pi-eye"
+          className="p-button-rounded p-button-info p-button-sm"
+          tooltip="Ver Detalles"
           tooltipOptions={{ position: "top" }}
           onClick={() => {
             toast.current.show({
               severity: "info",
-              summary: "Contacto",
-              detail: `Contactando a ${rowData.nombre}`,
+              summary: "Detalles",
+              detail: `Cliente: ${rowData.Usuario?.nombre || 'Sin nombre'}`,
             });
           }}
         />
@@ -151,28 +157,8 @@ export default function AgenteClients() {
     );
   };
 
-  const emailTemplate = (rowData) => {
-    return (
-      <a href={`mailto:${rowData.email}`} className="text-decoration-none">
-        <i className="pi pi-envelope me-2" style={{ color: "var(--sage-green)" }}></i>
-        {rowData.email}
-      </a>
-    );
-  };
-
-  const phoneTemplate = (rowData) => {
-    return rowData.telefono ? (
-      <a href={`tel:${rowData.telefono}`} className="text-decoration-none">
-        <i className="pi pi-phone me-2" style={{ color: "var(--gold)" }}></i>
-        {rowData.telefono}
-      </a>
-    ) : (
-      <span className="text-muted">Sin teléfono</span>
-    );
-  };
-
   const header = (
-    <div className="d-flex justify-content-between align-items-center flex-wrap gap-3">
+    <div className="d-flex justify-content-between align-items-center">
       <span className="p-input-icon-left w-50">
         <i className="pi pi-search" />
         <InputText
@@ -186,10 +172,7 @@ export default function AgenteClients() {
         label="Nuevo Cliente"
         icon="pi pi-plus"
         className="btn-premium"
-        onClick={() => {
-          resetForm();
-          setVisible(true);
-        }}
+        onClick={openNew}
       />
     </div>
   );
@@ -201,42 +184,8 @@ export default function AgenteClients() {
       <div className="mb-4">
         <h1 className="elegant-title">Mis Clientes</h1>
         <p className="text-muted">
-          Administra tu cartera de clientes y mantén contacto directo
+          Gestiona la base de datos de tus clientes
         </p>
-      </div>
-
-      {/* Estadísticas rápidas */}
-      <div className="row g-3 mb-4">
-        <div className="col-md-4">
-          <Card className="premium-card text-center">
-            <i
-              className="pi pi-users mb-2"
-              style={{ fontSize: "2rem", color: "var(--sage-green)" }}
-            ></i>
-            <h4>{clients.length}</h4>
-            <small className="text-muted">Total Clientes</small>
-          </Card>
-        </div>
-        <div className="col-md-4">
-          <Card className="premium-card text-center">
-            <i
-              className="pi pi-envelope mb-2"
-              style={{ fontSize: "2rem", color: "var(--gold)" }}
-            ></i>
-            <h4>{clients.filter((c) => c.email).length}</h4>
-            <small className="text-muted">Con Email</small>
-          </Card>
-        </div>
-        <div className="col-md-4">
-          <Card className="premium-card text-center">
-            <i
-              className="pi pi-phone mb-2"
-              style={{ fontSize: "2rem", color: "var(--primary-brown)" }}
-            ></i>
-            <h4>{clients.filter((c) => c.telefono).length}</h4>
-            <small className="text-muted">Con Teléfono</small>
-          </Card>
-        </div>
       </div>
 
       <Card className="premium-card">
@@ -246,7 +195,7 @@ export default function AgenteClients() {
           rows={10}
           rowsPerPageOptions={[5, 10, 25, 50]}
           responsiveLayout="scroll"
-          emptyMessage="No tienes clientes registrados"
+          emptyMessage="No hay clientes registrados"
           header={header}
           globalFilter={globalFilter}
           loading={loading}
@@ -254,29 +203,37 @@ export default function AgenteClients() {
           className="p-datatable-sm"
         >
           <Column
-            field="nombre"
-            header="Nombre"
+            header="Documento"
+            body={documentTemplate}
             sortable
+            field="documento_identidad"
+            style={{ minWidth: "150px" }}
+          />
+          <Column
+            header="Nombre"
+            body={nombreTemplate}
+            sortable
+            field="Usuario.nombre"
             style={{ minWidth: "200px" }}
           />
           <Column
-            field="email"
             header="Email"
             body={emailTemplate}
             sortable
+            field="Usuario.email"
             style={{ minWidth: "200px" }}
           />
           <Column
-            field="telefono"
             header="Teléfono"
             body={phoneTemplate}
             sortable
+            field="telefono"
             style={{ minWidth: "150px" }}
           />
           <Column
             header="Acciones"
             body={actionTemplate}
-            style={{ minWidth: "180px", textAlign: "center" }}
+            style={{ minWidth: "120px", textAlign: "center" }}
           />
         </DataTable>
       </Card>
@@ -286,7 +243,6 @@ export default function AgenteClients() {
         visible={visible}
         header={
           <span style={{ color: "var(--primary-brown)", fontWeight: "600" }}>
-            <i className="pi pi-user me-2"></i>
             {editingClient ? "Editar Cliente" : "Nuevo Cliente"}
           </span>
         }
@@ -299,43 +255,39 @@ export default function AgenteClients() {
       >
         <div className="d-flex flex-column gap-3 py-3">
           <div>
-            <label className="form-label fw-semibold">
-              <i className="pi pi-user me-2"></i>
-              Nombre Completo *
-            </label>
-            <InputText
-              placeholder="Ej: Juan Pérez"
-              value={formData.nombre}
+            <label className="form-label fw-semibold">Usuario *</label>
+            <Dropdown
+              value={formData.id_usuario}
+              options={userOptions}
               onChange={(e) =>
-                setFormData({ ...formData, nombre: e.target.value })
+                setFormData({ ...formData, id_usuario: e.value })
+              }
+              placeholder="Seleccione un usuario"
+              filter
+              className="w-100"
+              disabled={editingClient}
+            />
+            {editingClient && (
+              <small className="text-muted">El usuario no se puede cambiar en edición</small>
+            )}
+          </div>
+
+          <div>
+            <label className="form-label fw-semibold">Documento de Identidad *</label>
+            <InputText
+              placeholder="Ej: 12345678"
+              value={formData.documento_identidad}
+              onChange={(e) =>
+                setFormData({ ...formData, documento_identidad: e.target.value })
               }
               className="w-100"
             />
           </div>
 
           <div>
-            <label className="form-label fw-semibold">
-              <i className="pi pi-envelope me-2"></i>
-              Email *
-            </label>
+            <label className="form-label fw-semibold">Teléfono</label>
             <InputText
-              type="email"
-              placeholder="Ej: juan@example.com"
-              value={formData.email}
-              onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
-              }
-              className="w-100"
-            />
-          </div>
-
-          <div>
-            <label className="form-label fw-semibold">
-              <i className="pi pi-phone me-2"></i>
-              Teléfono
-            </label>
-            <InputText
-              placeholder="Ej: +54 9 358 123-4567"
+              placeholder="Ej: +54 9 123 456-7890"
               value={formData.telefono}
               onChange={(e) =>
                 setFormData({ ...formData, telefono: e.target.value })
@@ -345,13 +297,13 @@ export default function AgenteClients() {
           </div>
 
           <div
-            className="alert alert-success d-flex align-items-center"
+            className="alert alert-info d-flex align-items-center"
             style={{ background: "rgba(135, 169, 107, 0.1)", border: "1px solid var(--sage-green)" }}
           >
             <i className="pi pi-info-circle me-2"></i>
             <small>
-              Mantén actualizada la información de contacto de tus clientes para
-              brindarles un mejor servicio.
+              Como agente, puedes crear y editar clientes. Solo los
+              administradores pueden eliminarlos.
             </small>
           </div>
 
@@ -376,4 +328,4 @@ export default function AgenteClients() {
       </Dialog>
     </div>
   );
-}
+} 

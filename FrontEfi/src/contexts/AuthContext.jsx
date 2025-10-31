@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import api from "../api/client";
-import authService from "../service/auth";
 import { useNavigate } from "react-router-dom";
+import authService from "../service/auth";
 
 const AuthContext = createContext();
 
@@ -13,38 +13,59 @@ const AuthProvider = ({ children }) => {
 
   // ✅ Validar sesión al cargar
   useEffect(() => {
+    let isMounted = true;
+
     const validateSession = async () => {
       const savedToken = localStorage.getItem("token");
       const savedUser = localStorage.getItem("user");
       
+      console.log('🔍 Validando sesión...', { savedToken: !!savedToken, savedUser });
+      
       if (savedToken && savedUser) {
         try {
-          // Verificar que el token siga siendo válido
-          await api.get('/auth/verify'); // Necesitas crear este endpoint
-          setToken(savedToken);
-          setUser(JSON.parse(savedUser));
+          const res = await authService.verifySession();
+          console.log('✅ Sesión válida:', res.user);
+          
+          if (isMounted) {
+            setToken(savedToken);
+            setUser(res.user); // ✅ Incluye clienteId si es cliente
+            // ✅ Actualizar también en localStorage
+            localStorage.setItem("user", JSON.stringify(res.user));
+          }
         } catch (error) {
-          // Token inválido, limpiar todo
-          console.error('Sesión inválida:', error);
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
+          console.error('❌ Sesión inválida:', error);
+          if (isMounted) {
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            setUser(null);
+            setToken(null);
+          }
         }
       }
-      setLoading(false);
+      
+      if (isMounted) {
+        setLoading(false);
+      }
     };
 
     validateSession();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // LOGIN
   const login = useCallback(async (email, password) => {
     setLoading(true);
     try {
-      const res = await api.post("/auth/login", { email, password });
+      const res = await api.post("/api/auth/login", { email, password });
       const { token, user } = res.data;
 
+      console.log('👤 Usuario autenticado:', user); // ✅ Debug
+
       setToken(token);
-      setUser(user);
+      setUser(user); // ✅ Ahora incluye clienteId para clientes
 
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(user));
@@ -56,7 +77,7 @@ const AuthProvider = ({ children }) => {
         cliente: "/cliente/propiedades",
       };
       
-      navigate(routes[user.rol] || "/dashboard");
+      navigate(routes[user.rol] || "/");
     } catch (err) {
       throw new Error(err.response?.data?.message || "Error en login");
     } finally {
@@ -68,9 +89,8 @@ const AuthProvider = ({ children }) => {
   const register = useCallback(async (data) => {
     setLoading(true);
     try {
-      const res = await api.post("/auth/register", data);
+      await api.post("/api/auth/register", data);
       navigate("/login");
-      return res.data;
     } catch (err) {
       throw new Error(err.response?.data?.message || "Error en registro");
     } finally {
@@ -87,35 +107,14 @@ const AuthProvider = ({ children }) => {
     navigate("/login");
   }, [navigate]);
 
-  // FORGOT PASSWORD
-  const forgotPassword = useCallback(async (email) => {
-    try {
-      await authService.forgotPassword(email);
-    } catch (err) {
-      throw new Error(err.response?.data?.message || "Error al enviar email");
-    }
-  }, []);
-
-  // RESET PASSWORD
-  const resetPassword = useCallback(async (resetToken, newPassword) => {
-    try {
-      await authService.resetPassword(resetToken, newPassword);
-      navigate("/login");
-    } catch (err) {
-      throw new Error(err.response?.data?.message || "Error al restablecer contraseña");
-    }
-  }, [navigate]);
-
   return (
     <AuthContext.Provider
       value={{
-        user,
+        user, // ✅ Ahora incluye clienteId para clientes
         token,
         login,
         register,
         logout,
-        forgotPassword,
-        resetPassword,
         loading,
       }}
     >

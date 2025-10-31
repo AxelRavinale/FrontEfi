@@ -11,19 +11,26 @@ import { Toast } from "primereact/toast";
 import { confirmDialog } from "primereact/confirmdialog";
 import { Card } from "primereact/card";
 import { Tag } from "primereact/tag";
+import { TabView, TabPanel } from "primereact/tabview";
 import { useUsers } from "../../contexts/UsersContext";
+import { useAuth } from "../../contexts/AuthContext";
 
 export default function AdminUsers() {
-  const { users, createUser, updateUser, deleteUser, loading } = useUsers();
+  const { users, createUser, updateUser, deleteUser, deleteUserPermanently, restoreUser, getInactiveUsers, loading } = useUsers();
+  const { user: currentUser } = useAuth();
   const [visible, setVisible] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [activeTab, setActiveTab] = useState(0); // 0: Activos, 1: Inactivos
+  const [inactiveUsers, setInactiveUsers] = useState([]);
+  
   const [formData, setFormData] = useState({
-    name: "",
+    nombre: "",
     email: "",
-    age: 18,
+    edad: 18,
     password: "",
     rol: "cliente",
   });
+  
   const [globalFilter, setGlobalFilter] = useState("");
   const toast = useRef(null);
 
@@ -33,11 +40,28 @@ export default function AdminUsers() {
     { label: "Administrador", value: "admin" },
   ];
 
+  // Cargar usuarios inactivos cuando cambiamos a la pestaña
+  const handleTabChange = async (e) => {
+    setActiveTab(e.index);
+    if (e.index === 1) {
+      try {
+        const inactive = await getInactiveUsers();
+        setInactiveUsers(inactive);
+      } catch (error) {
+        toast.current.show({
+          severity: "error",
+          summary: "Error",
+          detail: "No se pudieron cargar usuarios inactivos",
+        });
+      }
+    }
+  };
+
   const resetForm = () => {
     setFormData({
-      name: "",
+      nombre: "",
       email: "",
-      age: 18,
+      edad: 18,
       password: "",
       rol: "cliente",
     });
@@ -47,18 +71,17 @@ export default function AdminUsers() {
   const openEdit = (user) => {
     setEditingUser(user);
     setFormData({
-      name: user.name || "",
+      nombre: user.nombre || "",
       email: user.email || "",
-      age: user.age || 18,
-      password: "", // No mostramos la contraseña actual
+      edad: user.edad || 18,
+      password: "",
       rol: user.rol || "cliente",
     });
     setVisible(true);
   };
 
   const handleSubmit = async () => {
-    // Validaciones
-    if (!formData.name || !formData.email) {
+    if (!formData.nombre || !formData.email) {
       toast.current.show({
         severity: "error",
         summary: "Error",
@@ -67,7 +90,6 @@ export default function AdminUsers() {
       return;
     }
 
-    // Validar email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
       toast.current.show({
@@ -78,7 +100,6 @@ export default function AdminUsers() {
       return;
     }
 
-    // Si es nuevo usuario, la contraseña es obligatoria
     if (!editingUser && !formData.password) {
       toast.current.show({
         severity: "error",
@@ -90,7 +111,6 @@ export default function AdminUsers() {
 
     try {
       if (editingUser) {
-        // Si no hay password, no lo enviamos (mantiene el anterior)
         const updateData = { ...formData };
         if (!updateData.password) {
           delete updateData.password;
@@ -115,36 +135,89 @@ export default function AdminUsers() {
       toast.current.show({
         severity: "error",
         summary: "Error",
-        detail: error.message || "Error en la operación",
+        detail: error.response?.data?.message || error.message || "Error en la operación",
       });
     }
   };
 
-  const handleDelete = (user) => {
+  // Eliminación LÓGICA (cambiar activo a false)
+  const handleSoftDelete = (user) => {
     confirmDialog({
-      message: `¿Está seguro de eliminar al usuario "${user.name}"?`,
-      header: "Confirmar Eliminación",
+      message: `¿Desactivar usuario "${user.nombre}"? Podrá ser restaurado después.`,
+      header: "Desactivar Usuario",
       icon: "pi pi-exclamation-triangle",
-      acceptClassName: "p-button-danger",
-      acceptLabel: "Sí, eliminar",
+      acceptClassName: "p-button-warning",
+      acceptLabel: "Sí, desactivar",
       rejectLabel: "Cancelar",
       accept: async () => {
         try {
-          await deleteUser(user.id);
+          await deleteUser(user.id); // Eliminación lógica
           toast.current.show({
             severity: "success",
-            summary: "Eliminado",
-            detail: "Usuario eliminado exitosamente",
+            summary: "Desactivado",
+            detail: "Usuario desactivado exitosamente",
           });
         } catch (error) {
           toast.current.show({
             severity: "error",
             summary: "Error",
-            detail: error.message || "Error al eliminar",
+            detail: error.message || "Error al desactivar",
           });
         }
       },
     });
+  };
+
+  // Eliminación FÍSICA (solo Admin)
+  const handlePermanentDelete = (user) => {
+    confirmDialog({
+      message: `⚠️ ¿ELIMINAR PERMANENTEMENTE a "${user.nombre}"? Esta acción NO SE PUEDE DESHACER.`,
+      header: "⚠️ Eliminación Permanente",
+      icon: "pi pi-exclamation-triangle",
+      acceptClassName: "p-button-danger",
+      acceptLabel: "Sí, eliminar definitivamente",
+      rejectLabel: "Cancelar",
+      accept: async () => {
+        try {
+          await deleteUserPermanently(user.id);
+          toast.current.show({
+            severity: "success",
+            summary: "Eliminado",
+            detail: "Usuario eliminado permanentemente",
+          });
+          // Recargar usuarios inactivos
+          const inactive = await getInactiveUsers();
+          setInactiveUsers(inactive);
+        } catch (error) {
+          toast.current.show({
+            severity: "error",
+            summary: "Error",
+            detail: error.message || "Error al eliminar permanentemente",
+          });
+        }
+      },
+    });
+  };
+
+  // Restaurar usuario
+  const handleRestore = async (user) => {
+    try {
+      await restoreUser(user.id);
+      toast.current.show({
+        severity: "success",
+        summary: "Restaurado",
+        detail: "Usuario restaurado exitosamente",
+      });
+      // Recargar usuarios inactivos
+      const inactive = await getInactiveUsers();
+      setInactiveUsers(inactive);
+    } catch (error) {
+      toast.current.show({
+        severity: "error",
+        summary: "Error",
+        detail: error.message || "Error al restaurar",
+      });
+    }
   };
 
   const rolTemplate = (rowData) => {
@@ -157,7 +230,7 @@ export default function AdminUsers() {
     return <Tag severity={rol.severity} value={rol.label} />;
   };
 
-  const actionTemplate = (rowData) => {
+  const actionTemplateActive = (rowData) => {
     return (
       <div className="d-flex gap-2">
         <Button
@@ -168,12 +241,44 @@ export default function AdminUsers() {
           tooltipOptions={{ position: "top" }}
         />
         <Button
-          icon="pi pi-trash"
-          className="p-button-rounded p-button-danger p-button-sm"
-          onClick={() => handleDelete(rowData)}
-          tooltip="Eliminar"
+          icon="pi pi-ban"
+          className="p-button-rounded p-button-warning p-button-sm"
+          onClick={() => handleSoftDelete(rowData)}
+          tooltip="Desactivar"
           tooltipOptions={{ position: "top" }}
         />
+        {currentUser?.rol === 'admin' && (
+          <Button
+            icon="pi pi-trash"
+            className="p-button-rounded p-button-danger p-button-sm"
+            onClick={() => handlePermanentDelete(rowData)}
+            tooltip="Eliminar Permanentemente"
+            tooltipOptions={{ position: "top" }}
+          />
+        )}
+      </div>
+    );
+  };
+
+  const actionTemplateInactive = (rowData) => {
+    return (
+      <div className="d-flex gap-2">
+        <Button
+          icon="pi pi-refresh"
+          className="p-button-rounded p-button-success p-button-sm"
+          onClick={() => handleRestore(rowData)}
+          tooltip="Restaurar"
+          tooltipOptions={{ position: "top" }}
+        />
+        {currentUser?.rol === 'admin' && (
+          <Button
+            icon="pi pi-trash"
+            className="p-button-rounded p-button-danger p-button-sm"
+            onClick={() => handlePermanentDelete(rowData)}
+            tooltip="Eliminar Permanentemente"
+            tooltipOptions={{ position: "top" }}
+          />
+        )}
       </div>
     );
   };
@@ -222,51 +327,54 @@ export default function AdminUsers() {
       </div>
 
       <Card className="premium-card">
-        <DataTable
-          value={users}
-          paginator
-          rows={10}
-          rowsPerPageOptions={[5, 10, 25, 50]}
-          responsiveLayout="scroll"
-          emptyMessage="No hay usuarios registrados"
-          header={header}
-          globalFilter={globalFilter}
-          loading={loading}
-          stripedRows
-          className="p-datatable-sm"
-        >
-          <Column
-            field="name"
-            header="Nombre"
-            sortable
-            style={{ minWidth: "200px" }}
-          />
-          <Column
-            field="email"
-            header="Email"
-            body={emailTemplate}
-            sortable
-            style={{ minWidth: "200px" }}
-          />
-          <Column
-            field="age"
-            header="Edad"
-            sortable
-            style={{ minWidth: "80px" }}
-          />
-          <Column
-            field="rol"
-            header="Rol"
-            body={rolTemplate}
-            sortable
-            style={{ minWidth: "140px" }}
-          />
-          <Column
-            header="Acciones"
-            body={actionTemplate}
-            style={{ minWidth: "120px", textAlign: "center" }}
-          />
-        </DataTable>
+        <TabView activeIndex={activeTab} onTabChange={handleTabChange}>
+          {/* TAB: Usuarios Activos */}
+          <TabPanel header="Usuarios Activos" leftIcon="pi pi-users mr-2">
+            <DataTable
+              value={users}
+              paginator
+              rows={10}
+              rowsPerPageOptions={[5, 10, 25, 50]}
+              responsiveLayout="scroll"
+              emptyMessage="No hay usuarios activos"
+              header={header}
+              globalFilter={globalFilter}
+              loading={loading}
+              stripedRows
+              className="p-datatable-sm"
+            >
+              <Column field="nombre" header="Nombre" sortable style={{ minWidth: "200px" }} />
+              <Column field="email" header="Email" body={emailTemplate} sortable style={{ minWidth: "200px" }} />
+              <Column field="edad" header="Edad" sortable style={{ minWidth: "80px" }} />
+              <Column field="rol" header="Rol" body={rolTemplate} sortable style={{ minWidth: "140px" }} />
+              <Column header="Acciones" body={actionTemplateActive} style={{ minWidth: "180px", textAlign: "center" }} />
+            </DataTable>
+          </TabPanel>
+
+          {/* TAB: Usuarios Inactivos (Solo Admin) */}
+          {currentUser?.rol === 'admin' && (
+            <TabPanel header="Usuarios Inactivos" leftIcon="pi pi-ban mr-2">
+              <DataTable
+                value={inactiveUsers}
+                paginator
+                rows={10}
+                rowsPerPageOptions={[5, 10, 25, 50]}
+                responsiveLayout="scroll"
+                emptyMessage="No hay usuarios inactivos"
+                globalFilter={globalFilter}
+                loading={loading}
+                stripedRows
+                className="p-datatable-sm"
+              >
+                <Column field="nombre" header="Nombre" sortable style={{ minWidth: "200px" }} />
+                <Column field="email" header="Email" body={emailTemplate} sortable style={{ minWidth: "200px" }} />
+                <Column field="edad" header="Edad" sortable style={{ minWidth: "80px" }} />
+                <Column field="rol" header="Rol" body={rolTemplate} sortable style={{ minWidth: "140px" }} />
+                <Column header="Acciones" body={actionTemplateInactive} style={{ minWidth: "150px", textAlign: "center" }} />
+              </DataTable>
+            </TabPanel>
+          )}
+        </TabView>
       </Card>
 
       {/* Dialog de formulario */}
@@ -289,10 +397,8 @@ export default function AdminUsers() {
             <label className="form-label fw-semibold">Nombre Completo *</label>
             <InputText
               placeholder="Ej: Juan Pérez"
-              value={formData.name}
-              onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
-              }
+              value={formData.nombre}
+              onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
               className="w-100"
             />
           </div>
@@ -303,9 +409,7 @@ export default function AdminUsers() {
               type="email"
               placeholder="Ej: juan@example.com"
               value={formData.email}
-              onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               className="w-100"
             />
           </div>
@@ -313,8 +417,8 @@ export default function AdminUsers() {
           <div>
             <label className="form-label fw-semibold">Edad *</label>
             <InputNumber
-              value={formData.age}
-              onValueChange={(e) => setFormData({ ...formData, age: e.value })}
+              value={formData.edad}
+              onValueChange={(e) => setFormData({ ...formData, edad: e.value })}
               min={18}
               max={120}
               className="w-100"
@@ -327,9 +431,7 @@ export default function AdminUsers() {
             </label>
             <Password
               value={formData.password}
-              onChange={(e) =>
-                setFormData({ ...formData, password: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               placeholder={editingUser ? "Nueva contraseña" : "Contraseña"}
               toggleMask
               className="w-100"

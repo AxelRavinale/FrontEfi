@@ -5,23 +5,50 @@ import propertiesService from "../service/properties";
 const PropertiesContext = createContext();
 
 export function PropertiesProvider({ children }) {
-  const { token } = useAuth();
+  const { user } = useAuth();
   const [properties, setProperties] = useState([]);
+  const [tiposPropiedad, setTiposPropiedad] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (token) fetchProperties();
-  }, [token]);
+    if (user?.id) {
+      loadData();
+    }
+  }, [user?.id]);
+
+  async function loadData() {
+    try {
+      await Promise.all([
+        fetchProperties(),
+        fetchTiposPropiedad()
+      ]);
+    } catch (err) {
+      console.error('Error al cargar datos:', err);
+    }
+  }
+
+  // ========== PROPIEDADES ==========
 
   async function fetchProperties() {
     setLoading(true);
     setError(null);
     try {
-      const data = await propertiesService.getAll(token);
+      const data = await propertiesService.getAll();
+      
+      // ✅ CORREGIDO: Admin y Agente ven TODAS las propiedades
+      // Solo los clientes ven solo disponibles (esto se maneja en ClientePropiedades.jsx)
       setProperties(data);
+      
+      console.log('📋 Propiedades cargadas:', {
+        total: data.length,
+        rol: user?.rol
+      });
+      
     } catch (err) {
-      setError(err.message);
+      console.error('Error al cargar propiedades:', err);
+      setError(err.response?.data?.message || err.message);
+      setProperties([]);
     } finally {
       setLoading(false);
     }
@@ -29,43 +56,135 @@ export function PropertiesProvider({ children }) {
 
   async function getPropertyById(id) {
     try {
-      return await propertiesService.getById(id, token);
+      const property = await propertiesService.getById(id);
+      return property;
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.message || err.message);
       return null;
     }
   }
 
   async function createProperty(payload) {
     try {
-      const newProp = await propertiesService.create(payload, token);
-      setProperties(prev => [...prev, newProp]);
+      const newProp = await propertiesService.create(payload);
+      await fetchProperties();
       return newProp;
     } catch (err) {
-      setError(err.message);
-      return null;
+      console.error('Error al crear propiedad:', err);
+      const errorMsg = err.response?.data?.message || err.message;
+      setError(errorMsg);
+      throw new Error(errorMsg);
     }
   }
 
   async function updateProperty(id, payload) {
     try {
-      const updated = await propertiesService.update(id, payload, token);
-      setProperties(prev =>
-        prev.map(p => (p.id === id ? updated : p))
-      );
+      const updated = await propertiesService.update(id, payload);
+      await fetchProperties();
       return updated;
     } catch (err) {
-      setError(err.message);
-      return null;
+      console.error('Error al actualizar propiedad:', err);
+      const errorMsg = err.response?.data?.message || err.message;
+      setError(errorMsg);
+      throw new Error(errorMsg);
     }
   }
 
   async function deleteProperty(id) {
     try {
-      await propertiesService.remove(id, token);
-      setProperties(prev => prev.filter(p => p.id !== id));
+      await propertiesService.remove(id);
+      await fetchProperties();
     } catch (err) {
-      setError(err.message);
+      console.error('Error al eliminar propiedad:', err);
+      const errorMsg = err.response?.data?.message || err.message;
+      setError(errorMsg);
+      throw new Error(errorMsg);
+    }
+  }
+
+  async function deletePropertyPermanente(id) {
+    try {
+      // ✅ Solo admin puede eliminar permanentemente (validado en backend también)
+      if (user?.rol !== 'admin') {
+        throw new Error('Solo los administradores pueden eliminar permanentemente');
+      }
+      await propertiesService.removePermanente(id);
+      await fetchProperties();
+    } catch (err) {
+      console.error('Error al eliminar propiedad permanentemente:', err);
+      const errorMsg = err.response?.data?.message || err.message;
+      setError(errorMsg);
+      throw new Error(errorMsg);
+    }
+  }
+
+  async function getInactiveProperties() {
+    try {
+      const data = await propertiesService.getInactive();
+      return data;
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || err.message;
+      setError(errorMsg);
+      throw new Error(errorMsg);
+    }
+  }
+
+  async function restoreProperty(id) {
+    try {
+      const restored = await propertiesService.restore(id);
+      await fetchProperties();
+      return restored;
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || err.message;
+      setError(errorMsg);
+      throw new Error(errorMsg);
+    }
+  }
+
+  // ========== TIPOS DE PROPIEDAD ==========
+
+  async function fetchTiposPropiedad() {
+    try {
+      const data = await propertiesService.getAllTipos();
+      setTiposPropiedad(data);
+    } catch (err) {
+      console.error('Error al cargar tipos de propiedad:', err);
+      setTiposPropiedad([]);
+    }
+  }
+
+  async function createTipoPropiedad(payload) {
+    try {
+      const newTipo = await propertiesService.createTipo(payload);
+      await fetchTiposPropiedad();
+      return newTipo;
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || err.message;
+      setError(errorMsg);
+      throw new Error(errorMsg);
+    }
+  }
+
+  async function updateTipoPropiedad(id, payload) {
+    try {
+      const updated = await propertiesService.updateTipo(id, payload);
+      await fetchTiposPropiedad();
+      return updated;
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || err.message;
+      setError(errorMsg);
+      throw new Error(errorMsg);
+    }
+  }
+
+  async function deleteTipoPropiedad(id) {
+    try {
+      await propertiesService.removeTipo(id);
+      await fetchTiposPropiedad();
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || err.message;
+      setError(errorMsg);
+      throw new Error(errorMsg);
     }
   }
 
@@ -73,6 +192,7 @@ export function PropertiesProvider({ children }) {
     <PropertiesContext.Provider
       value={{
         properties,
+        tiposPropiedad,
         loading,
         error,
         fetchProperties,
@@ -80,6 +200,13 @@ export function PropertiesProvider({ children }) {
         createProperty,
         updateProperty,
         deleteProperty,
+        deletePropertyPermanente,
+        getInactiveProperties,
+        restoreProperty,
+        fetchTiposPropiedad,
+        createTipoPropiedad,
+        updateTipoPropiedad,
+        deleteTipoPropiedad,
       }}
     >
       {children}
@@ -88,5 +215,9 @@ export function PropertiesProvider({ children }) {
 }
 
 export function useProperties() {
-  return useContext(PropertiesContext);
+  const context = useContext(PropertiesContext);
+  if (!context) {
+    throw new Error('useProperties debe usarse dentro de PropertiesProvider');
+  }
+  return context;
 }

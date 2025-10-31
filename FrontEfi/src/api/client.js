@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000', // ✅ Vite usa import.meta.env
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -21,16 +21,20 @@ api.interceptors.request.use(
   }
 );
 
-// ✅ Interceptor para manejar errores de autenticación
+// ✅ CORREGIDO: Solo redirigir al login en 401 (Unauthorized)
+// Los errores 403 (Forbidden) deben manejarse en el componente
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 || error.response?.status === 403) {
-      // Token inválido o expirado
+    // Solo redirigir en 401 (token inválido/expirado)
+    if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login';
     }
+    
+    // Los errores 403 (sin permisos) se propagan para que el componente los maneje
+    // Ejemplo: "No puedes editar esta propiedad porque no es tuya"
     return Promise.reject(error);
   }
 );

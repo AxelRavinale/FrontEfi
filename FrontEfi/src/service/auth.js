@@ -1,6 +1,6 @@
 import api from "../api/client";
 
-const endpoint = "/auth";
+const endpoint = "/api/auth";
 
 function unwrap(res) {
   return res.data?.data ?? res.data;
@@ -16,6 +16,11 @@ const register = async (payload) => {
   return res.data; // Retorna { message, data: newUser }
 };
 
+const verifySession = async () => {
+  const res = await api.get(`${endpoint}/verify`);
+  return res.data; // Retorna { valid: true, user }
+};
+
 const forgotPassword = async (email) => {
   const res = await api.post(`${endpoint}/forgot-password`, { email });
   return res.data;
@@ -26,4 +31,10 @@ const resetPassword = async (token, password) => {
   return res.data;
 };
 
-export default { login, register, forgotPassword, resetPassword };
+export default { 
+  login, 
+  register, 
+  verifySession,
+  forgotPassword, 
+  resetPassword 
+};

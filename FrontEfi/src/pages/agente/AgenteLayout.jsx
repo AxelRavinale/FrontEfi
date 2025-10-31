@@ -10,6 +10,7 @@ import AgenteProperties from "./AgenteProperties";
 import AgenteClients from "./AgenteClients";
 import AgenteRentals from "./AgenteRentals";
 import AgenteSales from "./AgenteSales";
+import AgenteSolicitudes from "./AgenteSolicitudes";
 
 export default function AgenteLayout() {
   const { user, logout } = useAuth();
@@ -34,6 +35,11 @@ export default function AgenteLayout() {
       label: "Clientes",
       icon: "👥",
       path: "/agente/clients",
+    },
+    {
+      label: "Solicitudes",
+      icon: "📥",
+      path: "/agente/solicitudes",
     },
     {
       label: "Alquileres",
@@ -207,10 +213,10 @@ export default function AgenteLayout() {
 
               <span style={userInfoStyle}>
                 <span>👤</span>
-                <span>{user?.name}</span>
+                <span>{user?.nombre}</span>
               </span>
               <div style={avatarStyle}>
-                {user?.name?.charAt(0).toUpperCase()}
+                {user?.nombre?.charAt(0).toUpperCase()}
               </div>
               <button
                 style={logoutButtonStyle}
@@ -270,10 +276,10 @@ export default function AgenteLayout() {
               >
                 <div className="d-flex align-items-center gap-3 mb-3">
                   <div style={avatarStyle}>
-                    {user?.name?.charAt(0).toUpperCase()}
+                    {user?.nombre?.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <span style={userInfoStyle}>{user?.name}</span>
+                    <span style={userInfoStyle}>{user?.nombre}</span>
                     <div style={agenteBadgeStyle}>AGENTE</div>
                   </div>
                 </div>
@@ -306,6 +312,7 @@ export default function AgenteLayout() {
           <Route path="/dashboard" element={<AgenteDashboard />} />
           <Route path="/properties" element={<AgenteProperties />} />
           <Route path="/clients" element={<AgenteClients />} />
+          <Route path="/solicitudes" element={<AgenteSolicitudes />} />
           <Route path="/rentals" element={<AgenteRentals />} />
           <Route path="/sales" element={<AgenteSales />} />
         </Routes>

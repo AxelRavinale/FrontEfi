@@ -7,20 +7,105 @@ import { Toast } from "primereact/toast";
 import { Card } from "primereact/card";
 import { Tag } from "primereact/tag";
 import { Timeline } from "primereact/timeline";
+import { InputText } from "primereact/inputtext";
+import { MultiSelect } from "primereact/multiselect";
+import { Calendar } from "primereact/calendar";
 import { useRentals } from "../../contexts/RentalsContext";
 import { useProperties } from "../../contexts/PropertiesContext";
 import { useAuth } from "../../contexts/AuthContext";
 
 export default function ClienteMisAlquileres() {
-  const { rentals, loading } = useRentals();
+  const { rentals, downloadContrato, loading } = useRentals();
   const { properties } = useProperties();
   const { user } = useAuth();
+  
   const [visible, setVisible] = useState(false);
   const [selectedRental, setSelectedRental] = useState(null);
+  const [downloading, setDownloading] = useState(false);
+  const [globalFilter, setGlobalFilter] = useState("");
+  
+  // ✅ FILTROS SIMPLES PARA CLIENTE
+  const [filters, setFilters] = useState({
+    estados: [],
+    fechaDesde: null,
+    fechaHasta: null,
+  });
+  
   const toast = useRef(null);
 
   // Filtrar solo alquileres del usuario actual
-  const misAlquileres = rentals.filter((r) => r.userId === user?.id);
+  const misAlquileres = rentals.filter((r) => r.id_cliente === user?.clienteId);
+
+  const estadoOptions = [
+    { label: "Pendiente", value: "pendiente" },
+    { label: "Aprobado", value: "aprobado" },
+    { label: "Activo", value: "activo" },
+    { label: "Finalizado", value: "finalizado" },
+    { label: "Cancelado", value: "cancelado" },
+  ];
+
+  // ✅ FUNCIÓN DE FILTRADO
+  const getFilteredRentals = () => {
+    let filtered = misAlquileres;
+
+    // Filtro de búsqueda global
+    if (globalFilter) {
+      filtered = filtered.filter(r => 
+        r.Propiedad?.direccion?.toLowerCase().includes(globalFilter.toLowerCase()) ||
+        r.id.toString().includes(globalFilter)
+      );
+    }
+
+    // Filtro por estados
+    if (filters.estados.length > 0) {
+      filtered = filtered.filter(r => filters.estados.includes(r.estado));
+    }
+
+    // Filtro por fecha de creación
+    if (filters.fechaDesde) {
+      filtered = filtered.filter(r => new Date(r.createdAt) >= filters.fechaDesde);
+    }
+    if (filters.fechaHasta) {
+      const fechaHastaEnd = new Date(filters.fechaHasta);
+      fechaHastaEnd.setHours(23, 59, 59, 999);
+      filtered = filtered.filter(r => new Date(r.createdAt) <= fechaHastaEnd);
+    }
+
+    return filtered;
+  };
+
+  const filteredRentals = getFilteredRentals();
+
+  const resetFilters = () => {
+    setFilters({
+      estados: [],
+      fechaDesde: null,
+      fechaHasta: null,
+    });
+    setGlobalFilter("");
+  };
+
+  const handleDownloadContrato = async (id) => {
+    setDownloading(true);
+    try {
+      await downloadContrato(id);
+      toast.current.show({
+        severity: "success",
+        summary: "Descarga Exitosa",
+        detail: "El contrato se ha descargado correctamente",
+        life: 3000,
+      });
+    } catch (error) {
+      toast.current.show({
+        severity: "error",
+        summary: "Error al Descargar",
+        detail: error.message || "No se pudo descargar el contrato",
+        life: 4000,
+      });
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const statusTemplate = (rowData) => {
     const statusMap = {
@@ -37,26 +122,14 @@ export default function ClienteMisAlquileres() {
   };
 
   const propertyTemplate = (rowData) => {
-    const property = properties.find((p) => p.id === rowData.propertyId);
+    const property = properties.find((p) => p.id === rowData.id_propiedad);
     return property ? (
       <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
         <i className="pi pi-home" style={{ color: "var(--gold)", fontSize: "1.2rem" }}></i>
-        <span style={{ fontWeight: "600" }}>{property.nombre}</span>
+        <span style={{ fontWeight: "600" }}>{property.direccion}</span>
       </div>
     ) : (
       <span className="text-muted">Propiedad no encontrada</span>
-    );
-  };
-
-  const addressTemplate = (rowData) => {
-    const property = properties.find((p) => p.id === rowData.propertyId);
-    return property ? (
-      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-        <i className="pi pi-map-marker" style={{ color: "var(--sage-green)" }}></i>
-        <span>{property.direccion}</span>
-      </div>
-    ) : (
-      <span className="text-muted">-</span>
     );
   };
 
@@ -73,25 +146,32 @@ export default function ClienteMisAlquileres() {
 
   const actionTemplate = (rowData) => {
     return (
-      <Button
-        icon="pi pi-eye"
-        label="Ver Detalles"
-        className="p-button-sm"
-        style={{
-          background: "linear-gradient(135deg, var(--sage-green), var(--gold))",
-          border: "none",
-          color: "white",
-        }}
-        onClick={() => {
-          setSelectedRental(rowData);
-          setVisible(true);
-        }}
-      />
+      <div className="d-flex gap-2">
+        <Button
+          icon="pi pi-eye"
+          className="p-button-sm p-button-info"
+          tooltip="Ver Detalles"
+          tooltipOptions={{ position: "top" }}
+          onClick={() => {
+            setSelectedRental(rowData);
+            setVisible(true);
+          }}
+        />
+        {(rowData.estado === "activo" || rowData.estado === "finalizado") && (
+          <Button
+            icon="pi pi-file-pdf"
+            className="p-button-sm p-button-help"
+            tooltip="Descargar Contrato"
+            tooltipOptions={{ position: "top" }}
+            loading={downloading}
+            onClick={() => handleDownloadContrato(rowData.id)}
+          />
+        )}
+      </div>
     );
   };
 
   const getTimelineEvents = (rental) => {
-    const property = properties.find((p) => p.id === rental.propertyId);
     const events = [
       {
         status: "Solicitud Enviada",
@@ -185,6 +265,67 @@ export default function ClienteMisAlquileres() {
     );
   };
 
+  const header = (
+    <div className="d-flex flex-column gap-3">
+      <div className="d-flex justify-content-between align-items-center">
+        <span className="p-input-icon-left" style={{ width: "300px" }}>
+          <i className="pi pi-search" />
+          <InputText
+            placeholder="Buscar por propiedad o ID..."
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+            className="w-100"
+          />
+        </span>
+        <Button
+          label="Limpiar Filtros"
+          icon="pi pi-filter-slash"
+          className="p-button-outlined"
+          onClick={resetFilters}
+        />
+      </div>
+
+      {/* ✅ PANEL DE FILTROS SIMPLES */}
+      <Card className="p-3" style={{ background: "rgba(135, 169, 107, 0.05)" }}>
+        <div className="row g-3">
+          <div className="col-md-4">
+            <label className="form-label fw-semibold" style={{ fontSize: "0.85rem" }}>Estados</label>
+            <MultiSelect
+              value={filters.estados}
+              options={estadoOptions}
+              onChange={(e) => setFilters({ ...filters, estados: e.value })}
+              placeholder="Todos"
+              className="w-100"
+              display="chip"
+            />
+          </div>
+          <div className="col-md-4">
+            <label className="form-label fw-semibold" style={{ fontSize: "0.85rem" }}>Fecha Solicitud (Desde)</label>
+            <Calendar
+              value={filters.fechaDesde}
+              onChange={(e) => setFilters({ ...filters, fechaDesde: e.value })}
+              placeholder="Desde"
+              dateFormat="dd/mm/yy"
+              showIcon
+              className="w-100"
+            />
+          </div>
+          <div className="col-md-4">
+            <label className="form-label fw-semibold" style={{ fontSize: "0.85rem" }}>Fecha Solicitud (Hasta)</label>
+            <Calendar
+              value={filters.fechaHasta}
+              onChange={(e) => setFilters({ ...filters, fechaHasta: e.value })}
+              placeholder="Hasta"
+              dateFormat="dd/mm/yy"
+              showIcon
+              className="w-100"
+            />
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+
   return (
     <div className="fade-in-up">
       <Toast ref={toast} />
@@ -212,9 +353,9 @@ export default function ClienteMisAlquileres() {
               style={{ fontSize: "2.5rem", opacity: 0.9 }}
             ></i>
             <h3 style={{ fontWeight: "700", fontSize: "2rem" }}>
-              {misAlquileres.length}
+              {filteredRentals.length}
             </h3>
-            <p className="mb-0" style={{ opacity: 0.95 }}>Total Alquileres</p>
+            <p className="mb-0" style={{ opacity: 0.95 }}>Alquileres Filtrados</p>
           </Card>
         </div>
         <div className="col-md-3">
@@ -231,7 +372,7 @@ export default function ClienteMisAlquileres() {
               style={{ fontSize: "2.5rem", opacity: 0.9 }}
             ></i>
             <h3 style={{ fontWeight: "700", fontSize: "2rem" }}>
-              {misAlquileres.filter((r) => r.estado === "pendiente").length}
+              {filteredRentals.filter((r) => r.estado === "pendiente").length}
             </h3>
             <p className="mb-0" style={{ opacity: 0.95 }}>Pendientes</p>
           </Card>
@@ -250,7 +391,7 @@ export default function ClienteMisAlquileres() {
               style={{ fontSize: "2.5rem", opacity: 0.9 }}
             ></i>
             <h3 style={{ fontWeight: "700", fontSize: "2rem" }}>
-              {misAlquileres.filter((r) => r.estado === "activo").length}
+              {filteredRentals.filter((r) => r.estado === "activo").length}
             </h3>
             <p className="mb-0" style={{ opacity: 0.95 }}>Activos</p>
           </Card>
@@ -269,7 +410,7 @@ export default function ClienteMisAlquileres() {
               style={{ fontSize: "2.5rem", opacity: 0.9 }}
             ></i>
             <h3 style={{ fontWeight: "700", fontSize: "2rem" }}>
-              {misAlquileres.filter((r) => r.estado === "finalizado").length}
+              {filteredRentals.filter((r) => r.estado === "finalizado").length}
             </h3>
             <p className="mb-0" style={{ opacity: 0.95 }}>Finalizados</p>
           </Card>
@@ -279,7 +420,7 @@ export default function ClienteMisAlquileres() {
       {/* Tabla de Alquileres */}
       <Card className="premium-card">
         <DataTable
-          value={misAlquileres}
+          value={filteredRentals}
           paginator
           rows={10}
           rowsPerPageOptions={[5, 10, 25]}
@@ -287,13 +428,14 @@ export default function ClienteMisAlquileres() {
           emptyMessage={
             <div className="text-center p-5">
               <i className="pi pi-inbox" style={{ fontSize: "3rem", color: "var(--sage-green)", marginBottom: "1rem" }}></i>
-              <h5 style={{ color: "var(--primary-brown)" }}>No tienes alquileres registrados</h5>
-              <p className="text-muted">Explora nuestras propiedades disponibles y envía tu primera solicitud</p>
+              <h5 style={{ color: "var(--primary-brown)" }}>No se encontraron alquileres con los filtros aplicados</h5>
+              <p className="text-muted">Ajusta tus filtros o explora nuestras propiedades disponibles</p>
             </div>
           }
           loading={loading}
           stripedRows
           className="p-datatable-sm"
+          header={header}
         >
           <Column
             field="id"
@@ -305,12 +447,7 @@ export default function ClienteMisAlquileres() {
             header="Propiedad"
             body={propertyTemplate}
             sortable
-            style={{ minWidth: "200px" }}
-          />
-          <Column
-            header="Ubicación"
-            body={addressTemplate}
-            style={{ minWidth: "200px" }}
+            style={{ minWidth: "250px" }}
           />
           <Column
             header="Fecha Solicitud"
@@ -328,7 +465,7 @@ export default function ClienteMisAlquileres() {
           <Column
             header="Acciones"
             body={actionTemplate}
-            style={{ minWidth: "180px", textAlign: "center" }}
+            style={{ minWidth: "140px", textAlign: "center" }}
           />
         </DataTable>
       </Card>
@@ -379,11 +516,11 @@ export default function ClienteMisAlquileres() {
                 </div>
                 <div style={{ flex: 1 }}>
                   <h5 style={{ color: "var(--primary-brown)", marginBottom: "0.5rem" }}>
-                    {properties.find((p) => p.id === selectedRental.propertyId)?.nombre || "Propiedad"}
+                    {properties.find((p) => p.id === selectedRental.id_propiedad)?.direccion || "Propiedad"}
                   </h5>
                   <p style={{ color: "var(--medium-text)", marginBottom: "0.5rem" }}>
                     <i className="pi pi-map-marker me-2"></i>
-                    {properties.find((p) => p.id === selectedRental.propertyId)?.direccion || "-"}
+                    {properties.find((p) => p.id === selectedRental.id_propiedad)?.descripcion || "-"}
                   </p>
                   <div>
                     {statusTemplate(selectedRental)}
@@ -543,6 +680,19 @@ export default function ClienteMisAlquileres() {
                 }}
                 style={{ color: "var(--medium-text)" }}
               />
+              {(selectedRental.estado === "activo" || selectedRental.estado === "finalizado") && (
+                <Button
+                  label="Descargar Contrato"
+                  icon="pi pi-file-pdf"
+                  className="btn-premium"
+                  loading={downloading}
+                  onClick={() => handleDownloadContrato(selectedRental.id)}
+                  style={{
+                    background: "linear-gradient(135deg, var(--gold), var(--light-gold))",
+                    border: "none",
+                  }}
+                />
+              )}
               {(selectedRental.estado === "activo" || selectedRental.estado === "aprobado") && (
                 <Button
                   label="Contactar Soporte"

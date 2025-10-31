@@ -11,6 +11,7 @@ import AdminClients from "./AdminClients";
 import AdminUsers from "./AdminUsers";
 import AdminRentals from "./AdminRentals";
 import AdminSales from "./AdminSales";
+import AdminSolicitudes from "./AdminSolicitudes";
 
 export default function AdminLayout() {
   const { user, logout } = useAuth();
@@ -40,6 +41,11 @@ export default function AdminLayout() {
       label: "Usuarios",
       icon: "👤",
       path: "/admin/users",
+    },
+    {
+      label: "Solicitudes",
+      icon: "📥",
+      path: "/admin/solicitudes",
     },
     {
       label: "Alquileres",
@@ -213,10 +219,10 @@ export default function AdminLayout() {
 
               <span style={userInfoStyle}>
                 <span>👨‍💼</span>
-                <span>{user?.name}</span>
+                <span>{user?.nombre}</span>
               </span>
               <div style={avatarStyle}>
-                {user?.name?.charAt(0).toUpperCase()}
+                {user?.nombre?.charAt(0).toUpperCase()}
               </div>
               <button
                 style={logoutButtonStyle}
@@ -276,10 +282,10 @@ export default function AdminLayout() {
               >
                 <div className="d-flex align-items-center gap-3 mb-3">
                   <div style={avatarStyle}>
-                    {user?.name?.charAt(0).toUpperCase()}
+                    {user?.nombre?.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <span style={userInfoStyle}>{user?.name}</span>
+                    <span style={userInfoStyle}>{user?.nombre}</span>
                     <div style={adminBadgeStyle}>ADMIN</div>
                   </div>
                 </div>
@@ -313,6 +319,7 @@ export default function AdminLayout() {
           <Route path="/properties" element={<AdminProperties />} />
           <Route path="/clients" element={<AdminClients />} />
           <Route path="/users" element={<AdminUsers />} />
+          <Route path="/solicitudes" element={<AdminSolicitudes />} />
           <Route path="/rentals" element={<AdminRentals />} />
           <Route path="/sales" element={<AdminSales />} />
         </Routes>

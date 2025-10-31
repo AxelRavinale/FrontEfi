@@ -9,6 +9,7 @@ import ClienteDashboard from "./ClienteDashboard";
 import ClientePropiedades from "./ClientePropiedades";
 import ClienteMisAlquileres from "./ClienteMisAlquileres";
 import ClienteMisCompras from "./ClienteMisCompras";
+import ClienteMisSolicitudes from "./ClienteMisSolicitudes";
 
 export default function ClienteLayout() {
   const { user, logout } = useAuth();
@@ -28,6 +29,11 @@ export default function ClienteLayout() {
       label: "Propiedades",
       icon: "🏠",
       path: "/cliente/propiedades",
+    },
+    {
+      label: "Mis Solicitudes",
+      icon: "📤",
+      path: "/cliente/solicitudes",
     },
     {
       label: "Mis Alquileres",
@@ -201,10 +207,10 @@ export default function ClienteLayout() {
 
               <span style={userInfoStyle}>
                 <span>👤</span>
-                <span>{user?.name}</span>
+                <span>{user?.nombre}</span>
               </span>
               <div style={avatarStyle}>
-                {user?.name?.charAt(0).toUpperCase()}
+                {user?.nombre?.charAt(0).toUpperCase()}
               </div>
               <button
                 style={logoutButtonStyle}
@@ -264,10 +270,10 @@ export default function ClienteLayout() {
               >
                 <div className="d-flex align-items-center gap-3 mb-3">
                   <div style={avatarStyle}>
-                    {user?.name?.charAt(0).toUpperCase()}
+                    {user?.nombre?.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <span style={userInfoStyle}>{user?.name}</span>
+                    <span style={userInfoStyle}>{user?.nombre}</span>
                     <div style={clienteBadgeStyle}>CLIENTE</div>
                   </div>
                 </div>
@@ -299,6 +305,7 @@ export default function ClienteLayout() {
           <Route path="/" element={<ClienteDashboard />} />
           <Route path="/dashboard" element={<ClienteDashboard />} />
           <Route path="/propiedades" element={<ClientePropiedades />} />
+          <Route path="/solicitudes" element={<ClienteMisSolicitudes />} />
           <Route path="/alquileres" element={<ClienteMisAlquileres />} />
           <Route path="/compras" element={<ClienteMisCompras />} />
         </Routes>
