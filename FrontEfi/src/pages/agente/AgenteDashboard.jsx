@@ -24,7 +24,7 @@ export default function AgenteDashboard() {
     totalClientes: clients.length,
     ingresosVentas: sales
       .filter((s) => s.estado === "finalizado")
-      .reduce((acc, s) => acc + (s.monto_total || 0), 0),
+      .reduce((acc, s) => acc +  parseFloat(s.monto_total || 0), 0),
   };
 
   const chartDataPropiedades = {
