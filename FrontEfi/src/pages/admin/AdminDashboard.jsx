@@ -23,7 +23,7 @@ export default function AdminDashboard() {
     totalVentas: sales.length,
     totalClientes: clients.length,
     totalUsuarios: users.length,
-    ingresosTotales: sales.reduce((acc, s) => acc + (s.monto_total || 0), 0),
+    ingresosTotales: sales.reduce((acc, s) => acc +  parseFloat(s.monto_total || 0), 0),
   };
 
   const chartDataPropiedades = {
