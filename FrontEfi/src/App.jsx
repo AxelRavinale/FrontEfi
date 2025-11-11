@@ -23,6 +23,8 @@ import "primeicons/primeicons.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "react-toastify/dist/ReactToastify.css";
 import "./styles/premium.css";
+import ForgotPassword from "./layouts/auth/ForgotPassword";
+import ResetPassword from "./layouts/auth/ResetPassword";
 
 function App() {
   return (
@@ -34,6 +36,8 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/unauthorized" element={<Unauthorized />} />
+        <Route path="/clave-olvidada" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
 
         {/* Admin - Rutas protegidas */}

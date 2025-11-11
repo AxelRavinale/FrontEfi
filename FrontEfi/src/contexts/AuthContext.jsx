@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import api from "../api/client";
+import axios from "axios"
 import { useNavigate } from "react-router-dom";
 import authService from "../service/auth";
 
@@ -107,12 +108,42 @@ const AuthProvider = ({ children }) => {
     navigate("/login");
   }, [navigate]);
 
+  const forgotPassword = async (email) =>{
+    try {
+      const response = await axios.post('http://localhost:3000/api/auth/forgotPassword', {email})
+      alert("Revisa tu correo electronico")
+      true;
+    } catch (error) {
+      console.error(error.response.data || error)
+      alert(error.response?.data?.message || "Error al enviar email");
+      return false
+    }
+  }
+
+  const resetPassword = async ({id, token, password}) => {
+    try {
+      await axios.post('http://localhost:3000/api/auth/resetPassword', { 
+        id, 
+        token, 
+        password 
+      });
+      alert("Contraseña actualizada exitosamente");
+      return true;
+    } catch (error) {
+      console.error(error.response?.data || error);
+      alert(error.response?.data?.message || "Error al cambiar contraseña");
+      return false;
+    }
+}
+
   return (
     <AuthContext.Provider
       value={{
         user, // ✅ Ahora incluye clienteId para clientes
         token,
         login,
+        forgotPassword,
+        resetPassword,
         register,
         logout,
         loading,
@@ -122,6 +153,8 @@ const AuthProvider = ({ children }) => {
     </AuthContext.Provider>
   );
 };
+
+
 
 // Hook personalizado
 const useAuth = () => {
